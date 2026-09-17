@@ -122,7 +122,7 @@
     border-radius: 3px;
     width: 240px;
   }
-  input#endpoint:focus { outline: none; border-color: var(--sky-dim); color: var(--text); }
+  input#endpoint:focus { outline: none; border-color: var(--sky); color: var(--text); box-shadow: 0 0 0 2px var(--sky-dim); }
 
   button#refreshBtn {
     background: transparent;
@@ -137,6 +137,38 @@
     transition: background 0.15s ease, border-color 0.15s ease;
   }
   button#refreshBtn:hover { background: #E3A44C12; border-color: var(--amber); }
+
+  .refresh-row { display: flex; align-items: center; gap: 10px; }
+
+  .auto-refresh-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .auto-refresh-toggle select {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 3px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
 
   /* ---------- KPI STRIP ---------- */
 
@@ -169,6 +201,71 @@
     color: var(--text-dim);
     line-height: 1.4;
   }
+
+  /* ---------- donut chart (nativas vs bridged) ---------- */
+
+  .kpi-donut { display: flex; align-items: center; gap: 14px; }
+
+  .donut-wrap { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+
+  .donut { width: 100%; height: 100%; transform: rotate(-90deg); }
+
+  .donut-track { fill: none; stroke: var(--panel-raised); stroke-width: 3.8; }
+
+  .donut-fill {
+    fill: none;
+    stroke: var(--amber);
+    stroke-width: 3.8;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.5s ease;
+  }
+
+  .donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  /* ---------- post controls (buscador / orden / export) ---------- */
+
+  .post-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .post-controls input[type="text"],
+  .post-controls select {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    padding: 7px 10px;
+    border-radius: 3px;
+  }
+
+  .post-controls input[type="text"] { min-width: 220px; }
+
+  .post-controls input:focus,
+  .post-controls select:focus { outline: none; border-color: var(--sky); color: var(--text); box-shadow: 0 0 0 2px var(--sky-dim); }
+
+  .post-controls button {
+    background: transparent;
+    border: 1px solid var(--sky-dim);
+    color: var(--sky);
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 7px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .post-controls button:hover { background: #6FA3C712; border-color: var(--sky); }
 
   /* ---------- SECTIONS ---------- */
 
@@ -409,6 +506,31 @@
     color: var(--text-faint);
     font-family: 'IBM Plex Mono', monospace;
   }
+
+  /* ---------- print ---------- */
+
+  @media print {
+    :root {
+      --ink: #ffffff;
+      --panel: #f5f5f5;
+      --panel-raised: #ececec;
+      --line: #cccccc;
+      --text: #111111;
+      --text-dim: #333333;
+      --text-faint: #666666;
+      --amber: #9c6a1f;
+      --amber-dim: #d8b98a;
+      --sky: #2d5a7a;
+      --sky-dim: #a9c4d6;
+    }
+    body { background: #fff; }
+    #connectionLine, input#endpoint, .refresh-row, .post-controls { display: none !important; }
+    .kpi-strip, .panel, .callout, .post-card {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    a { color: inherit; text-decoration: none; }
+  }
 </style>
 </head>
 <body>
@@ -423,16 +545,29 @@
         <p class="subtitle">Recolección y análisis OSINT de publicaciones públicas sobre ciberseguridad en Argentina, con detección de fuentes y actividad automatizada.</p>
       </div>
       <div class="refresh-block">
-        <div class="status-line"><span class="status-dot" id="statusDot"></span><span id="statusText">sin conectar</span></div>
+        <div class="status-line" id="connectionLine" role="status" aria-live="polite"><span class="status-dot" id="statusDot"></span><span id="statusText">sin conectar</span></div>
+        <div class="status-line" id="lastCollectedLine" style="display:none;">última recolección: <span id="lastCollectedText">—</span></div>
+        <label for="endpoint" class="sr-only">URL del webhook de n8n</label>
         <input type="text" id="endpoint" value="http://localhost:5678/webhook/dashboard-data">
-        <button id="refreshBtn">Actualizar datos</button>
+        <div class="refresh-row">
+          <button id="refreshBtn">Actualizar datos</button>
+          <label class="auto-refresh-toggle">
+            <input type="checkbox" id="autoRefreshToggle">
+            Auto
+            <select id="autoRefreshInterval" aria-label="Intervalo de auto-actualización">
+              <option value="30">30s</option>
+              <option value="60" selected>60s</option>
+              <option value="300">5min</option>
+            </select>
+          </label>
+        </div>
       </div>
     </div>
   </header>
 
-  <div id="app">
+  <main id="app">
     <div class="state-box">Conectando con el Webhook de n8n…</div>
-  </div>
+  </main>
 
   <footer>
     Pipeline: Bluesky (searchPosts) → n8n → PostgreSQL → Webhook · Actualizado en tiempo de carga de la página
@@ -445,6 +580,9 @@ const $ = (sel) => document.querySelector(sel);
 const app = $('#app');
 const statusDot = $('#statusDot');
 const statusText = $('#statusText');
+
+let lastData = null;
+const postState = { query: '', sortBy: 'fecha_desc' };
 
 function esc(str) {
   if (str === null || str === undefined) return '';
@@ -465,15 +603,74 @@ function shortUri(uri) {
   return parts[parts.length - 1];
 }
 
+function parseDMY(str) {
+  if (!str) return 0;
+  const [d, m, y] = str.split('/').map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1).getTime();
+}
+
+function getFilteredSortedPosts(allPosts) {
+  const q = postState.query.trim().toLowerCase();
+  const list = allPosts.filter(p => {
+    if (!q) return true;
+    return (p.texto || '').toLowerCase().includes(q) ||
+           (p.autor_handle || '').toLowerCase().includes(q) ||
+           (p.autor_display_name || '').toLowerCase().includes(q);
+  });
+  const dir = postState.sortBy.endsWith('_asc') ? 1 : -1;
+  if (postState.sortBy.startsWith('fecha')) {
+    list.sort((a, b) => dir * (new Date(a.fecha_creacion) - new Date(b.fecha_creacion)));
+  } else if (postState.sortBy.startsWith('engagement')) {
+    list.sort((a, b) => dir * (parseFloat(a.engagement_score || 0) - parseFloat(b.engagement_score || 0)));
+  }
+  return list;
+}
+
+function exportPostsCsv() {
+  if (!lastData) return;
+  const posts = getFilteredSortedPosts(lastData.posts || []);
+  const headers = ['fecha_creacion', 'autor_handle', 'autor_display_name', 'texto', 'likes', 'reposts', 'replies', 'quotes', 'engagement_score', 'fuente_dominio', 'es_bridged', 'keyword_busqueda', 'post_uri'];
+  const csvEscape = (val) => {
+    const s = (val === null || val === undefined) ? '' : String(val);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = [headers.join(',')];
+  posts.forEach(p => rows.push(headers.map(h => csvEscape(p[h])).join(',')));
+  const blob = new Blob(['﻿' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `observatorio_osint_posts_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function render(data) {
   const r = data.resumen || {};
   const fuentes = (data.fuentes || []).filter(f => f.fuente !== 'sin_fuente_externa').sort((a,b) => b.total - a.total);
   const sinFuente = (data.fuentes || []).find(f => f.fuente === 'sin_fuente_externa');
   const maxFuenteTotal = Math.max(1, ...fuentes.map(f => f.total));
-  const timeline = data.frecuencia_temporal || [];
+  const timeline = (data.frecuencia_temporal || []).slice().sort((a, b) => parseDMY(a.date) - parseDMY(b.date));
   const maxTl = Math.max(1, ...timeline.map(t => t.total));
   const top = data.mayor_engagement;
   const posts = data.posts || [];
+  const bridged = r.posts_bridged ?? 0;
+  const nativos = r.posts_nativos ?? 0;
+  const totalAcc = bridged + nativos;
+  const pctBridged = totalAcc > 0 ? Math.round((bridged / totalAcc) * 100) : 0;
+
+  const ultimaRecoleccionMs = posts.reduce((max, p) => {
+    const t = p.fecha_insercion ? new Date(p.fecha_insercion).getTime() : 0;
+    return t > max ? t : max;
+  }, 0);
+  const lastCollectedLine = $('#lastCollectedLine');
+  const lastCollectedText = $('#lastCollectedText');
+  if (ultimaRecoleccionMs > 0 && lastCollectedLine && lastCollectedText) {
+    lastCollectedText.textContent = fmtDate(new Date(ultimaRecoleccionMs).toISOString());
+    lastCollectedLine.style.display = '';
+  }
 
   let html = '';
 
@@ -492,9 +689,15 @@ function render(data) {
       <div class="kpi-value">${r.promedio_publicaciones_por_dia ?? '—'}</div>
       <div class="kpi-label">Promedio de publicaciones por día</div>
     </div>
-    <div class="kpi">
-      <div class="kpi-value accent">${r.posts_bridged ?? 0}</div>
-      <div class="kpi-label">Cuentas puenteadas (bridged) vs. ${r.posts_nativos ?? 0} nativas</div>
+    <div class="kpi kpi-donut">
+      <div class="donut-wrap">
+        <svg class="donut" viewBox="0 0 36 36" role="img" aria-label="Porcentaje de cuentas puenteadas sobre el total">
+          <circle class="donut-track" cx="18" cy="18" r="15.9155"></circle>
+          <circle class="donut-fill" cx="18" cy="18" r="15.9155" stroke-dasharray="${totalAcc > 0 ? pctBridged : 0} 100"></circle>
+        </svg>
+        <div class="donut-center">${totalAcc > 0 ? pctBridged + '%' : '—'}</div>
+      </div>
+      <div class="kpi-label">Bridged <b style="color:var(--text)">${bridged}</b> / Nativas <b style="color:var(--text)">${nativos}</b></div>
     </div>
   </div>`;
 
@@ -557,16 +760,32 @@ function render(data) {
   }
 
   // dossier de posts
+  const filteredPosts = getFilteredSortedPosts(posts);
+
   html += `<section>
     <div class="section-head">
       <h2 class="section-title">Registro de publicaciones</h2>
-      <div class="section-note">${posts.length} publicaciones, keyword de búsqueda: “${esc(posts[0]?.keyword_busqueda || '—')}”</div>
-    </div>`;
+      <div class="post-controls">
+        <label for="postSearch" class="sr-only">Buscar publicaciones por texto o autor</label>
+        <input type="text" id="postSearch" placeholder="Buscar por texto o autor…" value="${esc(postState.query)}">
+        <label for="postSort" class="sr-only">Ordenar publicaciones</label>
+        <select id="postSort">
+          <option value="fecha_desc"${postState.sortBy === 'fecha_desc' ? ' selected' : ''}>Más recientes</option>
+          <option value="fecha_asc"${postState.sortBy === 'fecha_asc' ? ' selected' : ''}>Más antiguos</option>
+          <option value="engagement_desc"${postState.sortBy === 'engagement_desc' ? ' selected' : ''}>Mayor engagement</option>
+          <option value="engagement_asc"${postState.sortBy === 'engagement_asc' ? ' selected' : ''}>Menor engagement</option>
+        </select>
+        <button id="exportCsvBtn" type="button">Exportar CSV</button>
+      </div>
+    </div>
+    <div class="section-note" style="margin-bottom:12px;">${filteredPosts.length} de ${posts.length} publicaciones${postState.query ? ` · filtro: “${esc(postState.query)}”` : ''} · keyword de búsqueda: “${esc(posts[0]?.keyword_busqueda || '—')}”</div>`;
 
   if (posts.length === 0) {
     html += `<div class="state-box">Todavía no hay publicaciones almacenadas. Corré el workflow de recolección en n8n.</div>`;
+  } else if (filteredPosts.length === 0) {
+    html += `<div class="state-box">Ninguna publicación coincide con “${esc(postState.query)}”.</div>`;
   } else {
-    posts.forEach(p => {
+    filteredPosts.forEach(p => {
       html += `<div class="post-card">
         <div class="post-date">${fmtDate(p.fecha_creacion)}</div>
         <div class="post-body">
@@ -597,6 +816,7 @@ async function loadData() {
     const res = await fetch(url, { method: 'GET' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
+    lastData = data;
     render(data);
     statusText.textContent = 'conectado · ' + new Date().toLocaleTimeString('es-AR');
     statusDot.className = 'status-dot ok';
@@ -612,6 +832,40 @@ async function loadData() {
 }
 
 $('#refreshBtn').addEventListener('click', loadData);
+
+let autoRefreshTimer = null;
+function updateAutoRefresh() {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+  if ($('#autoRefreshToggle').checked) {
+    const seconds = parseInt($('#autoRefreshInterval').value, 10) || 60;
+    autoRefreshTimer = setInterval(loadData, seconds * 1000);
+  }
+}
+$('#autoRefreshToggle').addEventListener('change', updateAutoRefresh);
+$('#autoRefreshInterval').addEventListener('change', updateAutoRefresh);
+
+app.addEventListener('input', (e) => {
+  if (e.target.id === 'postSearch') {
+    postState.query = e.target.value;
+    if (lastData) {
+      render(lastData);
+      const el = $('#postSearch');
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    }
+  }
+});
+
+app.addEventListener('change', (e) => {
+  if (e.target.id === 'postSort') {
+    postState.sortBy = e.target.value;
+    if (lastData) render(lastData);
+  }
+});
+
+app.addEventListener('click', (e) => {
+  if (e.target.id === 'exportCsvBtn') exportPostsCsv();
+});
+
 loadData();
 </script>
 
