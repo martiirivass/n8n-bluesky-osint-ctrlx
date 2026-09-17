@@ -1,0 +1,600 @@
+{
+  "name": "Workflow 1: Recolección de datos - Bluesky OSINT",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const post = $input.item.json;\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  try {\n    fuenteDominio = new URL(externalUri).hostname.replace('www.', '');\n  } catch (e) {\n    fuenteDominio = null;\n  }\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: post.record?.text || '',\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: $('Keyword').item.json.keyword\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -336
+      ],
+      "id": "b62ea1d1-56e4-4a27-9507-d169c766920e",
+      "name": "Limpieza y recopilación de datos"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      total_posts: items.length\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        -528
+      ],
+      "id": "02275daf-2b26-4ddb-8175-60a8e50fc8ee",
+      "name": "Conteo de items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2ce548c3-1236-40be-ab34-08d8172fcde1",
+              "name": "keyword",
+              "value": "ciberseguridad argentina",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -432,
+        -336
+      ],
+      "id": "dea9a6c8-22c3-47cc-9a8d-be70de7767c1",
+      "name": "Keyword"
+    },
+    {
+      "parameters": {
+        "jsCode": "const postsPerDay = {};\nfor (const item of items) {\n  const dateObj = new Date(item.json.fecha_creacion);\n  const day = String(dateObj.getUTCDate()).padStart(2, '0');\n  const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');\n  const year = dateObj.getUTCFullYear();\n  const formattedDate = `${day}/${month}/${year}`;\n  if (!postsPerDay[formattedDate]) {\n    postsPerDay[formattedDate] = 1;\n  } else {\n    postsPerDay[formattedDate]++;\n  }\n}\nreturn Object.keys(postsPerDay).map(date => {\n  return {\n    json: {\n      date: date,\n      total_posts: postsPerDay[date]\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        -144
+      ],
+      "id": "9b7e5ed8-75af-40cf-9f57-e9eb2d5e65bc",
+      "name": "Frecuencia temporal"
+    },
+    {
+      "parameters": {
+        "jsCode": "let totalPosts = 0;\nlet totalDays = items.length;\n\nlet maxDay = null;\nlet maxPosts = 0;\n\nfor (const item of items) {\n  const posts = item.json.total_posts;\n\n  totalPosts += posts;\n\n  if (posts > maxPosts) {\n    maxPosts = posts;\n    maxDay = item.json.date;\n  }\n}\n\nconst averagePerDay = totalPosts / totalDays;\n\nreturn [\n  {\n    json: {\n      total_dias_analizados: totalDays,\n      total_publicaciones: totalPosts,\n      promedio_publicaciones_por_dia: averagePerDay.toFixed(2),\n      dia_mayor_actividad: maxDay,\n      publicaciones_en_dia_mayor_actividad: maxPosts\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        -144
+      ],
+      "id": "bef97608-f50f-4396-919b-4c36d4aae93d",
+      "name": "Promedio diario"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bsky.social/xrpc/com.atproto.server.createSession",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"identifier\": \"TU_USUARIO.bsky.social\",\n  \"password\": \"TU_CONTRASEÑA\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        -336
+      ],
+      "id": "de1c3ba9-b176-4742-9c72-58128f3cf334",
+      "name": "Nodo: LoginBluesky"
+    },
+    {
+      "parameters": {
+        "url": "https://bsky.social/xrpc/app.bsky.feed.searchPosts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Keyword').item.json.keyword }}"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.accessJwt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -32,
+        -336
+      ],
+      "id": "c42e2e20-cd19-416c-bae8-5d5f588bf409",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fuenteCount = {};\nfor (const item of items) {\n  const fuente = item.json.fuente_dominio || 'sin_fuente_externa';\n  if (!fuenteCount[fuente]) {\n    fuenteCount[fuente] = 1;\n  } else {\n    fuenteCount[fuente]++;\n  }\n}\nreturn Object.keys(fuenteCount).map(fuente => {\n  return {\n    json: {\n      fuente_dominio: fuente,\n      total_posts: fuenteCount[fuente]\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        -336
+      ],
+      "id": "56df1d99-a5c5-46a0-be15-623b1caca01f",
+      "name": "Fuentes"
+    },
+    {
+      "parameters": {
+        "jsCode": "let maxFuente = null;\nlet maxPosts = 0;\nfor (const item of items) {\n  if (item.json.total_posts > maxPosts) {\n    maxPosts = item.json.total_posts;\n    maxFuente = item.json.fuente_dominio;\n  }\n}\nreturn [\n  {\n    json: {\n      fuente_dominante: maxFuente,\n      total_posts: maxPosts\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        -336
+      ],
+      "id": "32990031-1ead-4b99-b93f-9c0969f008d0",
+      "name": "Fuente dominante"
+    },
+    {
+      "parameters": {
+        "jsCode": "let maxScore = -1;\nlet topPost = null;\nfor (const item of items) {\n  const score = item.json.engagement_score;\n  if (score > maxScore) {\n    maxScore = score;\n    topPost = item.json;\n  }\n}\nreturn [\n  {\n    json: {\n      texto: topPost.texto,\n      autor: topPost.autor_handle,\n      fuente_dominio: topPost.fuente_dominio,\n      engagement_score: topPost.engagement_score,\n      likes: topPost.likes,\n      reposts: topPost.reposts,\n      replies: topPost.replies,\n      post_uri: topPost.post_uri\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        48
+      ],
+      "id": "31101c1b-339b-4f2a-8cfb-297b4e96432f",
+      "name": "mayor engagement"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS posts_bluesky (\n  id SERIAL PRIMARY KEY,\n  post_uri TEXT UNIQUE,\n  post_cid TEXT,\n  texto TEXT,\n  autor_handle TEXT,\n  autor_display_name TEXT,\n  fecha_creacion TIMESTAMP,\n  fecha_indexado TIMESTAMP,\n  likes INT,\n  reposts INT,\n  replies INT,\n  quotes INT,\n  engagement_score NUMERIC,\n  fuente_dominio TEXT,\n  es_bridged BOOLEAN,\n  keyword_busqueda TEXT,\n  fecha_insercion TIMESTAMP DEFAULT NOW()\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        736,
+        -528
+      ],
+      "id": "096294bf-98f3-423b-930f-df47cb248f59",
+      "name": "Crear tabla posts_bluesky",
+      "credentials": {
+        "postgres": {
+          "id": "YlaGPhF7D4F3BzFj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM posts_bluesky;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        992,
+        -240
+      ],
+      "id": "1da54945-6776-42fd-a6ff-c9fe33d92691",
+      "name": "Traer historial completo",
+      "credentials": {
+        "postgres": {
+          "id": "YlaGPhF7D4F3BzFj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "posts_bluesky",
+          "mode": "list",
+          "cachedResultName": "posts_bluesky"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "es_bridged": "={{ $json.es_bridged }}",
+            "likes": "={{ $json.likes }}",
+            "reposts": "={{ $json.reposts }}",
+            "replies": "={{ $json.replies }}",
+            "quotes": "={{ $json.quotes }}",
+            "engagement_score": "={{ $json.engagement_score }}",
+            "post_uri": "={{ $json.id }}",
+            "post_cid": "={{ $json.cid }}",
+            "texto": "={{ $json.texto }}",
+            "autor_handle": "={{ $json.autor_handle }}",
+            "autor_display_name": "={{ $json.autor_display_name }}",
+            "fecha_indexado": "={{ $json.fecha_indexado }}",
+            "fecha_creacion": "={{ $json.fecha_creacion }}",
+            "fuente_dominio": "={{ $json.fuente_dominio }}",
+            "keyword_busqueda": "={{ $json.keyword_busqueda }}"
+          },
+          "matchingColumns": [
+            "post_uri"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "post_uri",
+              "displayName": "post_uri",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "post_cid",
+              "displayName": "post_cid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "texto",
+              "displayName": "texto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "autor_handle",
+              "displayName": "autor_handle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "autor_display_name",
+              "displayName": "autor_display_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "fecha_creacion",
+              "displayName": "fecha_creacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "fecha_indexado",
+              "displayName": "fecha_indexado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "likes",
+              "displayName": "likes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "reposts",
+              "displayName": "reposts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "replies",
+              "displayName": "replies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "quotes",
+              "displayName": "quotes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "engagement_score",
+              "displayName": "engagement_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "fuente_dominio",
+              "displayName": "fuente_dominio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "es_bridged",
+              "displayName": "es_bridged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "keyword_busqueda",
+              "displayName": "keyword_busqueda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "fecha_insercion",
+              "displayName": "fecha_insercion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        768,
+        -240
+      ],
+      "id": "bf13185e-af94-4df4-abe8-2c5744d5fc85",
+      "name": "Insertar/actualizar posts",
+      "credentials": {
+        "postgres": {
+          "id": "YlaGPhF7D4F3BzFj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "posts",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        208,
+        -336
+      ],
+      "id": "cf9effb5-89d3-4b77-a9b0-d4473110315b",
+      "name": "Separar posts individuales"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        -336
+      ],
+      "id": "2daaca45-86cd-45e5-b9eb-66028ed87c28",
+      "name": "Ejecución con click manual"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Limpieza y recopilación de datos": {
+      "main": [
+        [
+          {
+            "node": "Crear tabla posts_bluesky",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insertar/actualizar posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keyword": {
+      "main": [
+        [
+          {
+            "node": "Nodo: LoginBluesky",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Frecuencia temporal": {
+      "main": [
+        [
+          {
+            "node": "Promedio diario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nodo: LoginBluesky": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Separar posts individuales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fuentes": {
+      "main": [
+        [
+          {
+            "node": "Fuente dominante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traer historial completo": {
+      "main": [
+        [
+          {
+            "node": "Conteo de items",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fuentes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Frecuencia temporal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "mayor engagement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar/actualizar posts": {
+      "main": [
+        [
+          {
+            "node": "Traer historial completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar posts individuales": {
+      "main": [
+        [
+          {
+            "node": "Limpieza y recopilación de datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecución con click manual": {
+      "main": [
+        [
+          {
+            "node": "Keyword",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a86c4f14-2e29-4021-93a9-8d061f022f24",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d7bb45de13a4a02af17a7c24f6ba1307df7e971274d6dbf4f9c208f75872410"
+  },
+  "id": "6iCAZ4SL6PsZI7QZ",
+  "tags": []
+}
