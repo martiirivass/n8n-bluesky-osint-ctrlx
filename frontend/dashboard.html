@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observatorio OSINT — Ciberseguridad Argentina</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #0F1720;
+    --panel: #151F2B;
+    --panel-raised: #1A2532;
+    --line: #2A3746;
+    --text: #E8ECF1;
+    --text-dim: #8FA0B3;
+    --text-faint: #5B6B7D;
+    --amber: #E3A44C;
+    --amber-dim: #7A5D34;
+    --sky: #6FA3C7;
+    --sky-dim: #33495A;
+    --danger: #C0654F;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { min-height: 100vh; }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 80px;
+  }
+
+  /* ---------- HEADER ---------- */
+
+  header.masthead {
+    border-bottom: 1px solid var(--line);
+    padding: 40px 0 28px;
+    margin-bottom: 36px;
+  }
+
+  .masthead-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .masthead-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    letter-spacing: 0.02em;
+    margin-bottom: 14px;
+  }
+
+  .masthead-id span { color: var(--amber); }
+
+  h1.title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(32px, 4.2vw, 46px);
+    line-height: 1.08;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+    max-width: 640px;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 15.5px;
+    max-width: 480px;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .refresh-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    min-width: 240px;
+  }
+
+  .status-line {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-faint);
+    text-align: right;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    margin-right: 7px;
+    position: relative;
+    top: -1px;
+  }
+  .status-dot.ok { background: #7FB88A; box-shadow: 0 0 6px #7FB88A55; }
+  .status-dot.err { background: var(--danger); box-shadow: 0 0 6px #C0654F55; }
+
+  input#endpoint {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    padding: 7px 10px;
+    border-radius: 3px;
+    width: 240px;
+  }
+  input#endpoint:focus { outline: none; border-color: var(--sky-dim); color: var(--text); }
+
+  button#refreshBtn {
+    background: transparent;
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  button#refreshBtn:hover { background: #E3A44C12; border-color: var(--amber); }
+
+  /* ---------- KPI STRIP ---------- */
+
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--line);
+    margin-bottom: 40px;
+  }
+
+  .kpi {
+    padding: 22px 24px;
+    border-right: 1px solid var(--line);
+  }
+  .kpi:last-child { border-right: none; }
+
+  .kpi-value {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 34px;
+    line-height: 1;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .kpi-value.accent { color: var(--amber); }
+
+  .kpi-label {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  /* ---------- SECTIONS ---------- */
+
+  section { margin-bottom: 44px; }
+
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 18px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  h2.section-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 21px;
+    margin: 0;
+  }
+
+  .section-note {
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+
+  /* ---------- GRID: fuentes + timeline ---------- */
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1.1fr 1.6fr;
+    gap: 24px;
+  }
+  @media (max-width: 820px) { .two-col { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 22px 24px;
+  }
+
+  /* fuentes list */
+
+  .fuente-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+  .fuente-row:last-child { border-bottom: none; }
+
+  .fuente-name {
+    flex: 1;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fuente-bar-track {
+    flex: 1.4;
+    height: 6px;
+    background: var(--panel-raised);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .fuente-bar-fill {
+    height: 100%;
+    background: var(--sky);
+    border-radius: 2px;
+  }
+
+  .fuente-count {
+    width: 26px;
+    text-align: right;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* timeline chart */
+
+  .timeline-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 160px;
+    padding-top: 10px;
+  }
+
+  .tl-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    gap: 8px;
+  }
+
+  .tl-bar {
+    width: 100%;
+    max-width: 34px;
+    background: var(--amber-dim);
+    border-top: 2px solid var(--amber);
+    border-radius: 2px 2px 0 0;
+    position: relative;
+    transition: background 0.15s ease;
+  }
+  .tl-col:hover .tl-bar { background: var(--amber); }
+
+  .tl-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .tl-date {
+    font-size: 10.5px;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  /* ---------- mayor engagement callout ---------- */
+
+  .callout {
+    border: 1px solid var(--amber-dim);
+    background: linear-gradient(180deg, #E3A44C0D, transparent 60%);
+    padding: 26px 28px;
+    position: relative;
+  }
+
+  .callout-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--amber);
+    margin-bottom: 12px;
+  }
+
+  .callout-text {
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--text);
+    max-width: 760px;
+    margin-bottom: 18px;
+    white-space: pre-wrap;
+  }
+
+  .callout-meta {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+
+  .callout-meta b { color: var(--text); font-weight: 600; }
+
+  /* ---------- posts dossier list ---------- */
+
+  .post-card {
+    border: 1px solid var(--line);
+    border-top: none;
+    padding: 18px 22px;
+    display: grid;
+    grid-template-columns: 100px 1fr 150px;
+    gap: 18px;
+    align-items: start;
+  }
+  .post-card:first-child { border-top: 1px solid var(--line); }
+
+  @media (max-width: 720px) {
+    .post-card { grid-template-columns: 1fr; gap: 8px; }
+  }
+
+  .post-date {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--text-faint);
+    padding-top: 2px;
+  }
+
+  .post-body { min-width: 0; }
+
+  .post-text {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    margin-bottom: 8px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .post-author {
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  .post-author b { color: var(--sky); font-weight: 500; }
+
+  .badge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border: 1px solid var(--sky-dim);
+    color: var(--sky);
+    border-radius: 2px;
+    margin-left: 8px;
+  }
+
+  .post-stats {
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+  .post-stats b { color: var(--text); font-weight: 600; }
+
+  /* ---------- states ---------- */
+
+  .state-box {
+    border: 1px dashed var(--line);
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .state-box.err { border-color: #C0654F55; color: #D89184; }
+
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <div>
+        <div class="masthead-id">FUENTE: <span>BLUESKY / AT PROTOCOL</span> — RECOLECCIÓN MANUAL PERIÓDICA</div>
+        <h1 class="title">Observatorio de ciberseguridad en redes sociales argentinas</h1>
+        <p class="subtitle">Recolección y análisis OSINT de publicaciones públicas sobre ciberseguridad en Argentina, con detección de fuentes y actividad automatizada.</p>
+      </div>
+      <div class="refresh-block">
+        <div class="status-line"><span class="status-dot" id="statusDot"></span><span id="statusText">sin conectar</span></div>
+        <input type="text" id="endpoint" value="http://localhost:5678/webhook/dashboard-data">
+        <button id="refreshBtn">Actualizar datos</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="app">
+    <div class="state-box">Conectando con el Webhook de n8n…</div>
+  </div>
+
+  <footer>
+    Pipeline: Bluesky (searchPosts) → n8n → PostgreSQL → Webhook · Actualizado en tiempo de carga de la página
+  </footer>
+
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const app = $('#app');
+const statusDot = $('#statusDot');
+const statusText = $('#statusText');
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+         ' · ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function shortUri(uri) {
+  if (!uri) return '—';
+  const parts = uri.split('/');
+  return parts[parts.length - 1];
+}
+
+function render(data) {
+  const r = data.resumen || {};
+  const fuentes = (data.fuentes || []).filter(f => f.fuente !== 'sin_fuente_externa').sort((a,b) => b.total - a.total);
+  const sinFuente = (data.fuentes || []).find(f => f.fuente === 'sin_fuente_externa');
+  const maxFuenteTotal = Math.max(1, ...fuentes.map(f => f.total));
+  const timeline = data.frecuencia_temporal || [];
+  const maxTl = Math.max(1, ...timeline.map(t => t.total));
+  const top = data.mayor_engagement;
+  const posts = data.posts || [];
+
+  let html = '';
+
+  // KPI strip
+  html += `
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="kpi-value">${r.total_posts ?? '—'}</div>
+      <div class="kpi-label">Publicaciones recolectadas</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value">${r.total_dias_analizados ?? '—'}</div>
+      <div class="kpi-label">Días con actividad registrada</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value">${r.promedio_publicaciones_por_dia ?? '—'}</div>
+      <div class="kpi-label">Promedio de publicaciones por día</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value accent">${r.posts_bridged ?? 0}</div>
+      <div class="kpi-label">Cuentas puenteadas (bridged) vs. ${r.posts_nativos ?? 0} nativas</div>
+    </div>
+  </div>`;
+
+  // Fuentes + timeline
+  html += `<section><div class="two-col">`;
+
+  html += `<div class="panel">
+    <div class="section-head"><h2 class="section-title">Fuentes citadas</h2></div>`;
+  if (fuentes.length === 0) {
+    html += `<div class="section-note">Ninguna publicación cita una fuente externa todavía.</div>`;
+  } else {
+    fuentes.forEach(f => {
+      const pct = (f.total / maxFuenteTotal) * 100;
+      html += `<div class="fuente-row">
+        <div class="fuente-name" title="${esc(f.fuente)}">${esc(f.fuente)}</div>
+        <div class="fuente-bar-track"><div class="fuente-bar-fill" style="width:${pct}%"></div></div>
+        <div class="fuente-count">${f.total}</div>
+      </div>`;
+    });
+  }
+  if (sinFuente) {
+    html += `<div class="section-note" style="margin-top:10px;">+ ${sinFuente.total} publicación(es) sin link externo (contenido original)</div>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="panel">
+    <div class="section-head"><h2 class="section-title">Frecuencia temporal</h2></div>`;
+  if (timeline.length === 0) {
+    html += `<div class="section-note">Sin datos suficientes para trazar la línea de tiempo.</div>`;
+  } else {
+    html += `<div class="timeline-chart">`;
+    timeline.forEach(t => {
+      const h = Math.max(6, (t.total / maxTl) * 100);
+      html += `<div class="tl-col">
+        <div class="tl-value">${t.total}</div>
+        <div class="tl-bar" style="height:${h}%"></div>
+        <div class="tl-date">${esc(t.date)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  html += `</div></section>`;
+
+  // mayor engagement
+  if (top) {
+    html += `<section>
+      <div class="section-head"><h2 class="section-title">Publicación de mayor alcance</h2></div>
+      <div class="callout">
+        <div class="callout-tag">engagement_score: ${top.engagement_score}</div>
+        <div class="callout-text">${esc(top.texto)}</div>
+        <div class="callout-meta">
+          <span><b>@${esc(top.autor_handle)}</b></span>
+          <span>${fmtDate(top.fecha_creacion)}</span>
+          <span>♥ <b>${top.likes}</b> · ⇄ <b>${top.reposts}</b> · ↩ <b>${top.replies}</b> · ❝ <b>${top.quotes}</b></span>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  // dossier de posts
+  html += `<section>
+    <div class="section-head">
+      <h2 class="section-title">Registro de publicaciones</h2>
+      <div class="section-note">${posts.length} publicaciones, keyword de búsqueda: “${esc(posts[0]?.keyword_busqueda || '—')}”</div>
+    </div>`;
+
+  if (posts.length === 0) {
+    html += `<div class="state-box">Todavía no hay publicaciones almacenadas. Corré el workflow de recolección en n8n.</div>`;
+  } else {
+    posts.forEach(p => {
+      html += `<div class="post-card">
+        <div class="post-date">${fmtDate(p.fecha_creacion)}</div>
+        <div class="post-body">
+          <div class="post-text">${esc(p.texto)}</div>
+          <div class="post-author">@${esc(p.autor_handle)}${p.autor_display_name ? ' — ' + esc(p.autor_display_name) : ''}${p.es_bridged ? '<span class="badge">bridged</span>' : ''}</div>
+        </div>
+        <div class="post-stats">
+          engagement <b>${p.engagement_score}</b><br>
+          ♥${p.likes} ⇄${p.reposts} ↩${p.replies}<br>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;">${esc(shortUri(p.post_uri))}</span>
+        </div>
+      </div>`;
+    });
+  }
+
+  html += `</section>`;
+
+  app.innerHTML = html;
+}
+
+async function loadData() {
+  const url = $('#endpoint').value.trim();
+  statusText.textContent = 'conectando…';
+  statusDot.className = 'status-dot';
+  app.innerHTML = `<div class="state-box">Consultando ${esc(url)}…</div>`;
+
+  try {
+    const res = await fetch(url, { method: 'GET' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    render(data);
+    statusText.textContent = 'conectado · ' + new Date().toLocaleTimeString('es-AR');
+    statusDot.className = 'status-dot ok';
+  } catch (err) {
+    statusText.textContent = 'sin conexión';
+    statusDot.className = 'status-dot err';
+    app.innerHTML = `<div class="state-box err">
+      No se pudo conectar con el Webhook.<br>
+      Verificá que el workflow "API Dashboard" esté <b>activo</b> en n8n y que la URL sea correcta.<br>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:0.8;">${esc(err.message)}</span>
+    </div>`;
+  }
+}
+
+$('#refreshBtn').addEventListener('click', loadData);
+loadData();
+</script>
+
+</body>
+</html>
