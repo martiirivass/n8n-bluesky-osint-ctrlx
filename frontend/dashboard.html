@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Observatorio OSINT — Ciberseguridad Argentina</title>
+<title>Observatorio OSINT — Ciberseguridad LATAM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -267,6 +267,157 @@
 
   .post-controls button:hover { background: #6FA3C712; border-color: var(--sky); }
 
+  /* ---------- filters bar ---------- */
+
+  .filters-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 14px 20px;
+    margin-bottom: 40px;
+  }
+
+  .filters-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: 0.03em;
+    margin-right: 4px;
+  }
+
+  .filters-bar select {
+    background: var(--panel-raised);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 3px;
+    min-width: 160px;
+  }
+  .filters-bar select:focus { outline: none; border-color: var(--sky); box-shadow: 0 0 0 2px var(--sky-dim); }
+
+  .filters-bar button {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    padding: 7px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .filters-bar button:hover { border-color: var(--danger); color: var(--danger); }
+
+  .filters-active-note {
+    font-size: 12.5px;
+    color: var(--amber);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ---------- interactive map ---------- */
+
+  .map-panel {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 22px 24px;
+    margin-bottom: 40px;
+  }
+
+  .map-wrap { display: flex; justify-content: center; }
+
+  svg.americas-map { width: 100%; max-width: 420px; height: auto; }
+
+  svg.americas-map .country {
+    fill: var(--panel-raised);
+    stroke: var(--line);
+    stroke-width: 0.6;
+    cursor: pointer;
+    transition: fill 0.15s ease;
+  }
+  svg.americas-map .country:hover { fill: var(--sky-dim); }
+  svg.americas-map .country.has-data { fill: var(--sky-dim); }
+  svg.americas-map .country.has-data:hover { fill: var(--sky); }
+  svg.americas-map .country.selected { fill: var(--amber); stroke: var(--amber); }
+
+  .map-legend {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .map-legend i { width: 10px; height: 10px; display: inline-block; border-radius: 2px; }
+
+  /* ---------- new search form ---------- */
+
+  .new-search-panel {
+    border: 1px solid var(--amber-dim);
+    background: linear-gradient(180deg, #E3A44C0D, transparent 60%);
+    padding: 22px 24px;
+    margin-bottom: 40px;
+  }
+
+  .new-search-form {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-top: 14px;
+  }
+
+  .new-search-field { display: flex; flex-direction: column; gap: 6px; }
+
+  .new-search-field label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  .new-search-field input,
+  .new-search-field select {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 3px;
+    min-width: 200px;
+  }
+  .new-search-field input:focus,
+  .new-search-field select:focus { outline: none; border-color: var(--sky); box-shadow: 0 0 0 2px var(--sky-dim); }
+
+  button#newSearchSubmit {
+    background: var(--amber);
+    border: 1px solid var(--amber);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  button#newSearchSubmit:hover { background: #ecb161; }
+  button#newSearchSubmit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .new-search-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 10px;
+  }
+  .new-search-status.ok { color: #7FB88A; }
+  .new-search-status.err { color: var(--danger); }
+
   /* ---------- SECTIONS ---------- */
 
   section { margin-bottom: 44px; }
@@ -525,6 +676,7 @@
     }
     body { background: #fff; }
     #connectionLine, input#endpoint, .refresh-row, .post-controls { display: none !important; }
+    .new-search-panel, .filters-bar { display: none !important; }
     .kpi-strip, .panel, .callout, .post-card {
       break-inside: avoid;
       page-break-inside: avoid;
@@ -540,9 +692,9 @@
   <header class="masthead">
     <div class="masthead-top">
       <div>
-        <div class="masthead-id">FUENTE: <span>BLUESKY / AT PROTOCOL</span> — RECOLECCIÓN MANUAL PERIÓDICA</div>
-        <h1 class="title">Observatorio de ciberseguridad en redes sociales argentinas</h1>
-        <p class="subtitle">Recolección y análisis OSINT de publicaciones públicas sobre ciberseguridad en Argentina, con detección de fuentes y actividad automatizada.</p>
+        <div class="masthead-id">FUENTE: <span>BLUESKY / AT PROTOCOL</span> — RECOLECCIÓN MANUAL Y BAJO DEMANDA</div>
+        <h1 class="title">Observatorio de ciberseguridad en redes sociales de LATAM</h1>
+        <p class="subtitle">Recolección y análisis OSINT de publicaciones públicas sobre ciberseguridad en América Latina, con detección de fuentes, país y actividad automatizada.</p>
       </div>
       <div class="refresh-block">
         <div class="status-line" id="connectionLine" role="status" aria-live="polite"><span class="status-dot" id="statusDot"></span><span id="statusText">sin conectar</span></div>
@@ -565,6 +717,117 @@
     </div>
   </header>
 
+  <div class="new-search-panel">
+    <div class="section-head">
+      <h2 class="section-title">Nueva búsqueda</h2>
+      <div class="section-note">Dispara una recolección en vivo contra Bluesky (Workflow 3)</div>
+    </div>
+    <form class="new-search-form" id="newSearchForm">
+      <div class="new-search-field">
+        <label for="newSearchKeyword">Keyword</label>
+        <select id="newSearchKeyword" required>
+          <option value="">Elegí una keyword…</option>
+          <option value="__custom__">+ Otra (especificar)</option>
+        </select>
+      </div>
+      <div class="new-search-field" id="newSearchKeywordCustomWrap" style="display:none;">
+        <label for="newSearchKeywordCustom">Nueva keyword</label>
+        <input type="text" id="newSearchKeywordCustom" placeholder="ej. phishing">
+      </div>
+      <div class="new-search-field">
+        <label for="newSearchPais">País</label>
+        <input type="text" id="newSearchPais" placeholder="ej. mexico" required>
+      </div>
+      <div class="new-search-field">
+        <label for="newSearchEndpoint">Endpoint del webhook</label>
+        <input type="text" id="newSearchEndpoint" value="http://localhost:5678/webhook/nueva-busqueda">
+      </div>
+      <button id="newSearchSubmit" type="submit">Buscar y recolectar</button>
+    </form>
+    <div class="new-search-status" id="newSearchStatus"></div>
+  </div>
+
+  <div class="map-panel">
+    <div class="section-head">
+      <h2 class="section-title">Mapa por país</h2>
+      <div class="section-note">Click en un país para filtrar</div>
+    </div>
+    <div class="map-wrap">
+      <svg class="americas-map" viewBox="129 429 199 269" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mapa de America Latina, clickeable por pais">
+  <title>Mapa de America Latina</title>
+  <g>
+    <g id="ar" class="country" data-pais="argentina" data-iso="ar" data-label="Argentina">
+        <path class="mainland" d="M279.05,600.613l1.677,1.571l-6.371,9.467l-2.239,2.479l0.777,10.813l4.918,5.974l-4.132,7.209l-3.129,1.35h-3.579l1.003,5.627l-5.593,1.92l1.34,4.729l-3.354,10.701l4.141,3.38l-2.239,5.515l-3.804,5.975l2.014,4.165l-4.918,0.786l-4.028-4.951l-0.674-15.432l-6.258-26.209l1.893-9.163l-4.028-11.713l2.68-15.204l2.463-2.931l-0.605-2.222l3.164-2.888l7.054,0.483l3.942,4.21l4.555,0.078l4.668,2.853l-1.375,3.217l0.329,3.25l6.612-0.312L279.05,600.613L279.05,600.613z"/>
+        <path d="M264.745,687.564l0.225,4.951l3.803-0.337l3.242-2.144l-5.48-1.124L264.745,687.564L264.745,687.564z"/>
+    </g>
+    <path id="bo" class="country" data-pais="bolivia" data-iso="bo" data-label="Bolivia" d="M238.631,561.361l7.114-3.104l2.351,0.226l1.565,6.534l10.839,3.604l1.79,5.523l4.469,0.562l1.902,4.729l-1.34,4.278l-7.27,0.562l-2.68,6.872l-5.705-0.112l-1.79-0.337l-3.293,3.197l-1.625-0.156l-5.593-12.957l1.547-2.316l0.545-9.163l-1.383-5.455L238.631,561.361L238.631,561.361z"/>
+    <path id="br" class="country" data-pais="brasil" data-iso="br" data-label="Brasil" d="M286.631,618.464l5.402-10.391l0.198-8.73l10.079-6.501h5.645l4.435-7.512l0.804-14.418l-1.815-3.855l10.684-9.751l0.406-10.761l-14.514-7.105l-17.53-5.48l-8.264-0.812l2.221-4.669l-0.604-7.104l-1.808-0.596l-2.671,5.308l-1.4,1.754l-3.595-1.59l-12.093,4.261l-4.028-5.073l0.648-5.299l-3.804,3.872l-4.201-2.265l-0.424,0.597l0.009,1.841l3.622,1.945l-5.437,5.73l-3.432-0.034l-3.475-3.535l-3.933,0.121l-0.484,4.2l2.256,2.739l-2.663,8.532l-3.112,0.241l-4.953,3.13l-1.21,6.146l4.296,4.599l0.787-0.89l3.017-0.812l2.576,4.34l7.374-3.164l2.861,0.165l1.971,6.976l10.52,3.337l1.815,5.564l4.478,0.537l2.135,5.314l-1.443,4.729l1.884,2.474l-0.276,3.683l5.048-0.477l4.625,5.844l-0.363,4.105l2.74,2.316l-6.57,9.95L286.631,618.464L286.631,618.464z"/>
+    <g id="bs" class="country" data-pais="bahamas" data-iso="bs" data-label="Bahamas">
+        <path d="M222.121,463.112l-1.089-0.337l-0.086,2.101l1.34,1.349l0.917-1.349L222.121,463.112L222.121,463.112z"/>
+        <path d="M224.29,466.397l-1.504,0.838l1.417,2.021l0.752-1.011L224.29,466.397L224.29,466.397z"/>
+        <path d="M229.14,467.91l-1.591-0.087l0.165,1.012l1.167,1.687l1.002-1.099L229.14,467.91L229.14,467.91z"/>
+        <path d="M228.388,465.896l-2.593-1.099l-0.501-2.609l1.002-0.425l1.003,2.023l1.002,0.76L228.388,465.896L228.388,465.896z"/>
+        <path d="M225.881,460.588l-1.34-0.337l-0.251-1.686l-1.417-0.501l0.917-0.926l1.668,0.588l1.253,0.762L225.881,460.588L225.881,460.588z"/>
+    </g>
+    <path id="bz" class="country" data-pais="belice" data-iso="bz" data-label="Belice" d="M191.823,483.228l-0.043,3.154h0.726l2.472-4.615h-1.677L191.823,483.228L191.823,483.228z"/>
+    <g id="cl" class="country" data-pais="chile" data-iso="cl" data-label="Chile">
+        <path d="M261.391,683.51l-3.691,8.109l6.371,0.674l0.112-5.403L261.391,683.51L261.391,683.51z"/>
+        <path d="M260.137,682.239l-2.775,3.068l-0.337,3.604l-5.368-3.043l-5.705-8.221l-1.677-2.932l2.351-3.043l-0.225-3.83l-2.68-1.124l-2.126-1.572l0.449-2.144l2.792-0.787l0.562-12.387l-4.356-2.48l-2.844-64.477l0.735-1.278l5.567,12.836l1.781,0.035l0.579,2.049l-2.369,2.868l-2.723,15.448l3.873,11.895l-1.79,9.007l6.31,26.485l0.666,15.49l4.521,5.229L260.137,682.239L260.137,682.239z"/>
+        <path d="M241.717,649.833l-1.115,1.686l0.562,2.932l1.115,0.112l0.562-3.718L241.717,649.833L241.717,649.833z"/>
+    </g>
+    <path id="co" class="country" data-pais="colombia" data-iso="co" data-label="Colombia" d="M234.326,498.251l-1.781-0.182l-11.773,9.707l-1.245,3.414l-1.608,0.182l0.717,7.546l-4.105,10.07l4.46,3.776l5.714,0.363l3.924,5.757l5.705,0.183l-0.182,4.312h2.135l2.316-7.909l-2.144-2.694l0.536-5.031l4.46-0.363l-0.536-11.688l-9.993-3.232l-2.316-6.293L234.326,498.251L234.326,498.251z"/>
+    <path id="cr" class="country" data-pais="costa rica" data-iso="cr" data-label="Costa Rica" d="M202.905,502.745l1.202,2.352l0.977,1.297l-1.314,3.898l-2.507-1.764l-4.097-3.752v-2.48L202.905,502.745L202.905,502.745z"/>
+    <path id="cu" class="country" data-pais="cuba" data-iso="cu" data-label="Cuba" d="M205.904,469.846v1.1l4.599,0.086l2.169-1.263l0.337,0.926l4.512,1.098l4.011,3.622l-0.917,1.262l0.165,1.436l3.345,0.839l3.345-1.514l1.504-1.513l-2.169-1.098l-11.194-6.569l-3.924-0.424L205.904,469.846L205.904,469.846z"/>
+    <path id="dm" class="country" data-pais="dominica" data-iso="dm" data-label="Dominica" d="M256.23,485.371l-0.761,1.616l0.917,1.228l1.141-0.994L256.23,485.371L256.23,485.371z"/>
+    <path id="do" class="country" data-pais="republica dominicana" data-iso="do" data-label="República Dominicana" d="M242.434,481.533l-4.573-2.991l-2.887-1.021l-0.578,5.521l0.578-0.047l0.761,1.461l0.994-1.15l2.896-0.77l2.516,0.536L242.434,481.533L242.434,481.533z"/>
+    <g id="ec" class="country" data-pais="ecuador" data-iso="ec" data-label="Ecuador">
+        <path class="mainland" d="M213.986,529.43l-4.088,2.541l-0.294,3.771l-0.821,1.234l2.576,2.473l-1.115,1.219l0.259,3.113l4.607,1.098l6.976-8.256l-0.017-2.878l-3.345-0.216L213.986,529.43L213.986,529.43z"/>
+        <path d="M183.533,531.443l-0.536,2.378l-0.994,1.002l0.683,1.228l1.754-0.69l0.838-1.461l-0.536-1.537L183.533,531.443L183.533,531.443z"/>
+    </g>
+    <path id="gt" class="country" data-pais="guatemala" data-iso="gt" data-label="Guatemala" d="M183.456,491.11l5.126,3.752l5.169-6.423l-0.881-1.331l-1.764-0.062v-3.761l-1.322-0.804l-4.002,1.192l1.53,3.526L183.456,491.11L183.456,491.11z"/>
+    <path id="gy" class="country" data-pais="guyana" data-iso="gy" data-label="Guyana" d="M261.399,510.654l6.241,5.652l-2.481,2.87l-0.199,1.703l3.259,3.362l-0.078,3.232l-5.67,2.16l-3.397-4.59l0.726-5.515l-1.452-4.105L261.399,510.654L261.399,510.654z"/>
+    <path id="hn" class="country" data-pais="honduras" data-iso="hn" data-label="Honduras" d="M194.408,488.742l7.987-0.303l2.369,2.817l-1.478-0.338l-2.844,0.121l-3.717,3.492l-1.59,3.536l-1.046-0.555l-0.009-3.872l-2.299-1.539L194.408,488.742L194.408,488.742z"/>
+    <path id="ht" class="country" data-pais="haiti" data-iso="ht" data-label="Haití" d="M231.845,477.159l2.974,0.311l-0.354,3.648l-0.294,1.919l-3.466-0.19l-0.614,0.926l-1.063-0.077l-0.38-1.997l3.656-0.304l-0.225-2.073l-1.677-0.691L231.845,477.159L231.845,477.159z"/>
+    <path id="jm" class="country" data-pais="jamaica" data-iso="jm" data-label="Jamaica" d="M221.533,480.798l-3.008,0.761v0.84l1.755,1.011h1.841l1.167-1.349L221.533,480.798L221.533,480.798z"/>
+    <path id="lc" class="country" data-pais="santa lucia" data-iso="lc" data-label="Santa Lucía" d="M258.746,493.28l-0.614,1.306l0.994,1.071l1.296-0.691L258.746,493.28L258.746,493.28z"/>
+    <path id="mx" class="country" data-pais="mexico" data-iso="mx" data-label="México" d="M133.847,433.982l4.175,13.146l-1.945,1.089l0.216,2.61l3.674,2.827v5.229l4.538,4.356l-1.945-12.847l-2.593-8.497l0.648-5.877l2.161,0.217l0.865,1.962l-0.865,5.005l11.237,21.99v7.841l9.077,10.666l9.94,4.573l4.106-2.396l5.835,4.789l3.458-3.483l-1.513-3.925l4.97-1.521l1.513,0.873l1.513-1.521h2.377l4.322-7.624l-2.161-1.962l-8.428,1.962l-1.945,5.662L182.106,480l-5.834-2.396l-2.593-8.271l1.962-10.434l-4.011-2.498l-1.91-10.02l-1.599-0.683l-2.922,2.965l-3.354-1.789l-1.313-6.682l-13.286-1.393l-6.863-5.16L133.847,433.982L133.847,433.982z"/>
+    <path id="ni" class="country" data-pais="nicaragua" data-iso="ni" data-label="Nicaragua" d="M203.216,491.62l1.893,0.381l0.061,3.881l-2.204,6.293l-5.938-0.588l-1.323-3.034l1.764-3.682l3.345-3.112L203.216,491.62L203.216,491.62z"/>
+    <path id="pa" class="country" data-pais="panama" data-iso="pa" data-label="Panamá" d="M205.68,506.748l-1.262,3.941l4.167,1.079l2.584,0.512l0.441-3.052l2.775-1.4l2.463,1.271l0.968,1.547l1.175-0.138l0.925-2.81l-3.078-1.271l-2.334-1.271l-2.333,1.59l-2.775,1.4l-2.835-1.141L205.68,506.748L205.68,506.748z"/>
+    <path id="pe" class="country" data-pais="peru" data-iso="pe" data-label="Perú" d="M209.518,541.246l-1.677,1.695l0.113,2.703l14.643,26.694l15.205,9.802l2.351-3.941l0.562-8.669l-1.228-5.402l-4.141-6.984l-2.463,0.786l-1.115,1.236l-4.918-5.636l1.228-6.647l5.705-3.717l-0.449-3.492l-5.809-0.226l-3.017-5.064l-1.677-0.562l0.113,3.044l-7.486,8.895l-5.593-1.349L209.518,541.246L209.518,541.246z"/>
+    <path id="pr" class="country" data-pais="puerto rico" data-iso="pr" data-label="Puerto Rico" d="M249.297,482.068l-2.282-0.77l-1.833,1.149l0.917,1.071l3.121,0.458L249.297,482.068L249.297,482.068z"/>
+    <path id="py" class="country" data-pais="paraguay" data-iso="py" data-label="Paraguay" d="M267.199,584.458l1.902,2.074l-0.225,4.392l5.48-0.338l4.141,5.299l-0.337,4.729l-2.681,4.054L270,604.893l-0.225-2.256l1.564-3.718l-5.368-3.38h-4.469l-3.354-3.604l2.438-6.968L267.199,584.458L267.199,584.458z"/>
+    <path id="sr" class="country" data-pais="surinam" data-iso="sr" data-label="Surinam" d="M268.384,516.715l1.763,1.616l2.731-1.694l2.49,0.078l-0.32,0.968l-1.046,2.179l-0.164,5.421l-4.97,2.022l0.242-3.476l-3.207-2.991l0.164-1.538L268.384,516.715L268.384,516.715z"/>
+    <path id="sv" class="country" data-pais="el salvador" data-iso="sv" data-label="El Salvador" d="M189.308,495.217l4.062,2.022l-0.061-3.207l-2.083-1.271L189.308,495.217L189.308,495.217z"/>
+    <path id="tt" class="country" data-pais="trinidad y tobago" data-iso="tt" data-label="Trinidad y Tobago" d="M258.97,502.572l-0.917,0.847l-0.994,0.155v1.228l1.833,1.687l0.76-1.229l0.458-1.383l-0.156-1.149L258.97,502.572L258.97,502.572z"/>
+    <path id="uy" class="country" data-pais="uruguay" data-iso="uy" data-label="Uruguay" d="M274.633,612.481l-1.773,1.894l0.735,10.183l5.566,1.615l7.08-7.097L274.633,612.481L274.633,612.481z"/>
+    <g id="vc" class="country" data-pais="san vicente y las granadinas" data-iso="vc" data-label="San Vicente y las Granadinas">
+        <path d="M258.823,496.582l-1.063,0.77l0.839,1.539l1.374-0.77L258.823,496.582L258.823,496.582z"/>
+        <path d="M257.526,499.573l-0.994,0.994l0.38,0.612h1.219l0.38-1.003L257.526,499.573L257.526,499.573z"/>
+    </g>
+    <path id="ve" class="country" data-pais="venezuela" data-iso="ve" data-label="Venezuela" d="M231.5,503.558l0.38,2.239l2.809,0.892l0.64-4.124l2.965-3.068l2.965,3.475l6.82,1.859l5.774-1.211l3.933,4.849l2.965,1.858l-3.25,4.953l1.089,3.752l-1.858,2.299l-1.928,1.616l-4.175-2.102l-0.959,0.969v2.99l3.052,1.452l-2.248,2.43l-2.248,2.43l-2.965-0.242l-2.982-3.275l-0.631-12.326l-10.183-3.476l-1.85-5.42L231.5,503.558L231.5,503.558z"/>
+  </g>
+</svg>
+    </div>
+    <div class="map-legend">
+      <span><i style="background:var(--sky-dim)"></i> con publicaciones</span>
+      <span><i style="background:var(--amber)"></i> seleccionado</span>
+      <span><i style="background:var(--panel-raised)"></i> sin datos</span>
+    </div>
+    <div class="section-note" style="margin-top:10px; text-align:center;">Mapa base: <a href="https://github.com/flekschas/simple-world-map" style="color:var(--text-faint)">Al MacDonald / Fritz Lekschas</a>, CC BY-SA 3.0</div>
+  </div>
+
+  <div class="filters-bar" id="filtersBar">
+    <span class="filters-label">FILTRAR POR</span>
+    <select id="filterPais" aria-label="Filtrar por país">
+      <option value="">Todos los países</option>
+    </select>
+    <select id="filterKeyword" aria-label="Filtrar por keyword">
+      <option value="">Todas las keywords</option>
+    </select>
+    <button id="clearFiltersBtn" type="button">Limpiar filtros</button>
+    <span class="filters-active-note" id="filtersActiveNote"></span>
+  </div>
+
   <main id="app">
     <div class="state-box">Conectando con el Webhook de n8n…</div>
   </main>
@@ -577,12 +840,19 @@
 
 <script>
 const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const app = $('#app');
 const statusDot = $('#statusDot');
 const statusText = $('#statusText');
 
 let lastData = null;
 const postState = { query: '', sortBy: 'fecha_desc' };
+const filterState = { pais: '', keyword: '' };
+
+function normalize(s) {
+  if (!s) return '';
+  return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
 
 function esc(str) {
   if (str === null || str === undefined) return '';
@@ -626,9 +896,112 @@ function getFilteredSortedPosts(allPosts) {
   return list;
 }
 
+function applyPaisKeywordFilter(posts) {
+  return posts.filter(p => {
+    if (filterState.pais && normalize(p.pais) !== normalize(filterState.pais)) return false;
+    if (filterState.keyword && p.keyword_busqueda !== filterState.keyword) return false;
+    return true;
+  });
+}
+
+function computeAggregates(posts) {
+  const total_posts = posts.length;
+
+  const fuenteCount = {};
+  for (const p of posts) {
+    const f = p.fuente_dominio || 'sin_fuente_externa';
+    fuenteCount[f] = (fuenteCount[f] || 0) + 1;
+  }
+  const fuentes = Object.entries(fuenteCount).map(([fuente, total]) => ({ fuente, total }));
+  const fuente_dominante = fuentes.reduce((max, f) => (f.total > (max?.total || 0) ? f : max), null);
+
+  const postsPerDay = {};
+  for (const p of posts) {
+    const d = new Date(p.fecha_creacion);
+    if (isNaN(d)) continue;
+    const key = `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+    postsPerDay[key] = (postsPerDay[key] || 0) + 1;
+  }
+  const frecuencia_temporal = Object.entries(postsPerDay)
+    .map(([date, total]) => ({ date, total }))
+    .sort((a, b) => parseDMY(a.date) - parseDMY(b.date));
+
+  const total_dias = frecuencia_temporal.length;
+  const promedio_diario = total_dias > 0 ? (total_posts / total_dias).toFixed(2) : '0.00';
+
+  const mayor_engagement = posts.reduce((max, p) => {
+    const score = parseFloat(p.engagement_score || 0);
+    const maxScore = max ? parseFloat(max.engagement_score || 0) : -1;
+    return score > maxScore ? p : max;
+  }, null);
+
+  const bridged_count = posts.filter(p => p.es_bridged).length;
+
+  const paisCount = {};
+  for (const p of posts) {
+    const pais = p.pais || 'sin_especificar';
+    paisCount[pais] = (paisCount[pais] || 0) + 1;
+  }
+  const posts_por_pais = Object.entries(paisCount).map(([pais, total]) => ({ pais, total }));
+
+  return {
+    resumen: {
+      total_posts,
+      total_dias_analizados: total_dias,
+      promedio_publicaciones_por_dia: promedio_diario,
+      posts_bridged: bridged_count,
+      posts_nativos: total_posts - bridged_count
+    },
+    fuente_dominante,
+    fuentes,
+    frecuencia_temporal,
+    mayor_engagement,
+    posts_por_pais
+  };
+}
+
+function populateFilterOptions(allPosts) {
+  const paisSelect = $('#filterPais');
+  const keywordSelect = $('#filterKeyword');
+  const paises = [...new Set(allPosts.map(p => p.pais).filter(Boolean))].sort();
+  const keywords = [...new Set(allPosts.map(p => p.keyword_busqueda).filter(Boolean))].sort();
+
+  paisSelect.innerHTML = '<option value="">Todos los países</option>' +
+    paises.map(p => `<option value="${esc(p)}"${normalize(p) === normalize(filterState.pais) ? ' selected' : ''}>${esc(p)}</option>`).join('');
+  keywordSelect.innerHTML = '<option value="">Todas las keywords</option>' +
+    keywords.map(k => `<option value="${esc(k)}"${k === filterState.keyword ? ' selected' : ''}>${esc(k)}</option>`).join('');
+}
+
+function updateMap(allPosts) {
+  const paisesConDatos = new Set(allPosts.map(p => normalize(p.pais)).filter(Boolean));
+  const selectedNorm = normalize(filterState.pais);
+  $$('.country').forEach(el => {
+    const paisNorm = el.getAttribute('data-pais');
+    el.classList.toggle('has-data', paisesConDatos.has(paisNorm));
+    el.classList.toggle('selected', !!selectedNorm && paisNorm === selectedNorm);
+  });
+}
+
+function populateNewSearchKeywords(allPosts) {
+  const select = $('#newSearchKeyword');
+  const current = select.value;
+  const keywords = [...new Set(allPosts.map(p => p.keyword_busqueda).filter(Boolean))].sort();
+  select.innerHTML = '<option value="">Elegí una keyword…</option>' +
+    keywords.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('') +
+    '<option value="__custom__">+ Otra (especificar)</option>';
+  if ([...select.options].some(o => o.value === current)) select.value = current;
+}
+
+function updateFiltersNote() {
+  const parts = [];
+  if (filterState.pais) parts.push(`país: "${filterState.pais}"`);
+  if (filterState.keyword) parts.push(`keyword: "${filterState.keyword}"`);
+  $('#filtersActiveNote').textContent = parts.length ? 'Filtros activos — ' + parts.join(' · ') : '';
+}
+
 function exportPostsCsv() {
   if (!lastData) return;
-  const posts = getFilteredSortedPosts(lastData.posts || []);
+  const posts = getFilteredSortedPosts(applyPaisKeywordFilter(lastData.posts || []));
   const headers = ['fecha_creacion', 'autor_handle', 'autor_display_name', 'texto', 'likes', 'reposts', 'replies', 'quotes', 'engagement_score', 'fuente_dominio', 'es_bridged', 'keyword_busqueda', 'post_uri'];
   const csvEscape = (val) => {
     const s = (val === null || val === undefined) ? '' : String(val);
@@ -648,20 +1021,28 @@ function exportPostsCsv() {
 }
 
 function render(data) {
-  const r = data.resumen || {};
-  const fuentes = (data.fuentes || []).filter(f => f.fuente !== 'sin_fuente_externa').sort((a,b) => b.total - a.total);
-  const sinFuente = (data.fuentes || []).find(f => f.fuente === 'sin_fuente_externa');
+  const allPosts = data.posts || [];
+  populateFilterOptions(allPosts);
+  populateNewSearchKeywords(allPosts);
+  updateMap(allPosts);
+  updateFiltersNote();
+
+  const posts = applyPaisKeywordFilter(allPosts);
+  const agg = computeAggregates(posts);
+
+  const r = agg.resumen;
+  const fuentes = agg.fuentes.filter(f => f.fuente !== 'sin_fuente_externa').sort((a,b) => b.total - a.total);
+  const sinFuente = agg.fuentes.find(f => f.fuente === 'sin_fuente_externa');
   const maxFuenteTotal = Math.max(1, ...fuentes.map(f => f.total));
-  const timeline = (data.frecuencia_temporal || []).slice().sort((a, b) => parseDMY(a.date) - parseDMY(b.date));
+  const timeline = agg.frecuencia_temporal;
   const maxTl = Math.max(1, ...timeline.map(t => t.total));
-  const top = data.mayor_engagement;
-  const posts = data.posts || [];
+  const top = agg.mayor_engagement;
   const bridged = r.posts_bridged ?? 0;
   const nativos = r.posts_nativos ?? 0;
   const totalAcc = bridged + nativos;
   const pctBridged = totalAcc > 0 ? Math.round((bridged / totalAcc) * 100) : 0;
 
-  const ultimaRecoleccionMs = posts.reduce((max, p) => {
+  const ultimaRecoleccionMs = allPosts.reduce((max, p) => {
     const t = p.fecha_insercion ? new Date(p.fecha_insercion).getTime() : 0;
     return t > max ? t : max;
   }, 0);
@@ -780,8 +1161,10 @@ function render(data) {
     </div>
     <div class="section-note" style="margin-bottom:12px;">${filteredPosts.length} de ${posts.length} publicaciones${postState.query ? ` · filtro: “${esc(postState.query)}”` : ''} · keyword de búsqueda: “${esc(posts[0]?.keyword_busqueda || '—')}”</div>`;
 
-  if (posts.length === 0) {
+  if (allPosts.length === 0) {
     html += `<div class="state-box">Todavía no hay publicaciones almacenadas. Corré el workflow de recolección en n8n.</div>`;
+  } else if (posts.length === 0) {
+    html += `<div class="state-box">Ningún post coincide con el filtro de país/keyword activo.</div>`;
   } else if (filteredPosts.length === 0) {
     html += `<div class="state-box">Ninguna publicación coincide con “${esc(postState.query)}”.</div>`;
   } else {
@@ -864,6 +1247,76 @@ app.addEventListener('change', (e) => {
 
 app.addEventListener('click', (e) => {
   if (e.target.id === 'exportCsvBtn') exportPostsCsv();
+});
+
+$('#filterPais').addEventListener('change', (e) => {
+  filterState.pais = e.target.value;
+  if (lastData) render(lastData);
+});
+
+$('#filterKeyword').addEventListener('change', (e) => {
+  filterState.keyword = e.target.value;
+  if (lastData) render(lastData);
+});
+
+$('#clearFiltersBtn').addEventListener('click', () => {
+  filterState.pais = '';
+  filterState.keyword = '';
+  if (lastData) render(lastData);
+});
+
+$('.map-wrap').addEventListener('click', (e) => {
+  const country = e.target.closest('.country');
+  if (!country) return;
+  const pais = country.getAttribute('data-pais');
+  filterState.pais = (normalize(filterState.pais) === pais) ? '' : pais;
+  if (lastData) render(lastData);
+});
+
+$('#newSearchKeyword').addEventListener('change', (e) => {
+  const isCustom = e.target.value === '__custom__';
+  $('#newSearchKeywordCustomWrap').style.display = isCustom ? '' : 'none';
+  if (isCustom) $('#newSearchKeywordCustom').focus();
+});
+
+$('#newSearchForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const keywordSelect = $('#newSearchKeyword').value;
+  const keyword = (keywordSelect === '__custom__' ? $('#newSearchKeywordCustom').value : keywordSelect).trim();
+  const pais = $('#newSearchPais').value.trim();
+  const url = $('#newSearchEndpoint').value.trim();
+  const btn = $('#newSearchSubmit');
+  const status = $('#newSearchStatus');
+
+  if (!keyword || !pais) {
+    status.className = 'new-search-status err';
+    status.textContent = 'Completá keyword y país.';
+    return;
+  }
+
+  btn.disabled = true;
+  status.className = 'new-search-status';
+  status.textContent = 'Buscando en Bluesky y guardando resultados… puede tardar unos segundos.';
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword, pais })
+    });
+    const body = await res.json();
+    if (!res.ok || body.ok === false) {
+      throw new Error(body.error || ('HTTP ' + res.status));
+    }
+    status.className = 'new-search-status ok';
+    status.textContent = `Listo: ${body.posts_procesados} publicación(es) procesadas para "${body.keyword}" · ${body.pais}.`;
+    await loadData();
+  } catch (err) {
+    status.className = 'new-search-status err';
+    status.textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 loadData();

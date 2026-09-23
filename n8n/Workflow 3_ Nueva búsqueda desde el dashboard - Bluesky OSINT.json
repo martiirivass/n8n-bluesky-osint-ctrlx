@@ -1,46 +1,37 @@
 {
-  "name": "Workflow 1: Recolección de datos - Bluesky OSINT V2",
+  "name": "Workflow 3: Nueva búsqueda desde el dashboard - Bluesky OSINT",
   "nodes": [
     {
       "parameters": {
-        "jsCode": "const post = $input.item.json;\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  try {\n    fuenteDominio = new URL(externalUri).hostname.replace('www.', '');\n  } catch (e) {\n    fuenteDominio = null;\n  }\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: post.record?.text || '',\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: $('Keyword').item.json.keyword,\n    pais: $('Keyword').item.json.pais\n\n  }\n};"
+        "httpMethod": "POST",
+        "path": "nueva-busqueda",
+        "responseMode": "responseNode",
+        "options": {}
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
       "position": [
-        -432,
-        224
+        -672,
+        112
       ],
-      "id": "c9723013-37bf-4172-8948-7184ea2f8f7e",
-      "name": "Limpieza y recopilación de datos"
-    },
-    {
-      "parameters": {
-        "jsCode": "return [\n  {\n    json: {\n      total_posts: items.length\n    }\n  }\n];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        560,
-        32
-      ],
-      "id": "aa920e37-a0de-41ae-a599-ff2baf6531e0",
-      "name": "Conteo de items"
+      "id": "568a3f15-007e-4e3d-a20c-010025b2a95e",
+      "name": "Webhook - Nueva búsqueda",
+      "webhookId": "5e74c0f4-58ac-4f74-8eec-cf9d5cce5ca1"
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "2ce548c3-1236-40be-ab34-08d8172fcde1",
+              "id": "a1b2c3d4-0002-4a11-9001-000000000002",
               "name": "keyword",
-              "value": "ransomware",
+              "value": "={{ $json.body.keyword }}",
               "type": "string"
             },
             {
-              "id": "7f7f5bc2-e39d-46e3-b112-a76877093d81",
+              "id": "a1b2c3d4-0003-4a11-9001-000000000003",
               "name": "pais",
-              "value": "brasil",
+              "value": "={{ $json.body.pais }}",
               "type": "string"
             }
           ]
@@ -50,37 +41,79 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1296,
-        224
+        -448,
+        112
       ],
-      "id": "f6b24a09-76d5-433f-a567-488dacb4aa04",
+      "id": "b6ae7ffb-c7dc-4130-90fb-9fb9531420b8",
       "name": "Keyword"
     },
     {
       "parameters": {
-        "jsCode": "const postsPerDay = {};\nfor (const item of items) {\n  const dateObj = new Date(item.json.fecha_creacion);\n  const day = String(dateObj.getUTCDate()).padStart(2, '0');\n  const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');\n  const year = dateObj.getUTCFullYear();\n  const formattedDate = `${day}/${month}/${year}`;\n  if (!postsPerDay[formattedDate]) {\n    postsPerDay[formattedDate] = 1;\n  } else {\n    postsPerDay[formattedDate]++;\n  }\n}\nreturn Object.keys(postsPerDay).map(date => {\n  return {\n    json: {\n      date: date,\n      total_posts: postsPerDay[date]\n    }\n  };\n});"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "a1b2c3d4-0005-4a11-9001-000000000005",
+              "leftValue": "={{ $json.keyword }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "a1b2c3d4-0006-4a11-9001-000000000006",
+              "leftValue": "={{ $json.pais }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.code",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        560,
-        416
+        -224,
+        112
       ],
-      "id": "dd593f84-5cc6-4f0c-9868-55d89974d074",
-      "name": "Frecuencia temporal"
+      "id": "d0af1d63-0846-4827-9d8f-6a6976a722d8",
+      "name": "Validar keyword y pais"
     },
     {
       "parameters": {
-        "jsCode": "let totalPosts = 0;\nlet totalDays = items.length;\n\nlet maxDay = null;\nlet maxPosts = 0;\n\nfor (const item of items) {\n  const posts = item.json.total_posts;\n\n  totalPosts += posts;\n\n  if (posts > maxPosts) {\n    maxPosts = posts;\n    maxDay = item.json.date;\n  }\n}\n\nconst averagePerDay = totalPosts / totalDays;\n\nreturn [\n  {\n    json: {\n      total_dias_analizados: totalDays,\n      total_publicaciones: totalPosts,\n      promedio_publicaciones_por_dia: averagePerDay.toFixed(2),\n      dia_mayor_actividad: maxDay,\n      publicaciones_en_dia_mayor_actividad: maxPosts\n    }\n  }\n];"
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"error\": \"Faltan los campos 'keyword' y/o 'pais' en el body de la request.\" } }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
       "position": [
-        784,
-        416
+        0,
+        288
       ],
-      "id": "f2c25728-4291-49a4-a297-e1aabac4caf7",
-      "name": "Promedio diario"
+      "id": "9bbfc6ee-a24d-4550-a9ff-90599300e85f",
+      "name": "Respond error"
     },
     {
       "parameters": {
@@ -96,10 +129,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1104,
-        224
+        0,
+        0
       ],
-      "id": "fad48f7f-db9c-4a00-ac7b-07269c04c907",
+      "id": "bca5a86d-7953-4089-83ed-59120b2c8a1a",
       "name": "Nodo: LoginBluesky",
       "credentials": {
         "httpCustomAuth": {
@@ -138,92 +171,38 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -896,
-        224
+        224,
+        0
       ],
-      "id": "7df0f7d0-1c20-41f8-bf33-4ee6ae9298fd",
+      "id": "f9b6087f-6efd-4afe-bc6d-0e125ab168e4",
       "name": "HTTP Request"
     },
     {
       "parameters": {
-        "jsCode": "const fuenteCount = {};\nfor (const item of items) {\n  const fuente = item.json.fuente_dominio || 'sin_fuente_externa';\n  if (!fuenteCount[fuente]) {\n    fuenteCount[fuente] = 1;\n  } else {\n    fuenteCount[fuente]++;\n  }\n}\nreturn Object.keys(fuenteCount).map(fuente => {\n  return {\n    json: {\n      fuente_dominio: fuente,\n      total_posts: fuenteCount[fuente]\n    }\n  };\n});"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        560,
-        224
-      ],
-      "id": "3fbdbdf9-a4e0-4a0a-8623-a293c7b010ec",
-      "name": "Fuentes"
-    },
-    {
-      "parameters": {
-        "jsCode": "let maxFuente = null;\nlet maxPosts = 0;\nfor (const item of items) {\n  if (item.json.total_posts > maxPosts) {\n    maxPosts = item.json.total_posts;\n    maxFuente = item.json.fuente_dominio;\n  }\n}\nreturn [\n  {\n    json: {\n      fuente_dominante: maxFuente,\n      total_posts: maxPosts\n    }\n  }\n];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        784,
-        224
-      ],
-      "id": "a3c8d039-ce2e-4a08-ab3d-79ce9c1c7032",
-      "name": "Fuente dominante"
-    },
-    {
-      "parameters": {
-        "jsCode": "let maxScore = -1;\nlet topPost = null;\nfor (const item of items) {\n  const score = item.json.engagement_score;\n  if (score > maxScore) {\n    maxScore = score;\n    topPost = item.json;\n  }\n}\nreturn [\n  {\n    json: {\n      texto: topPost.texto,\n      autor: topPost.autor_handle,\n      fuente_dominio: topPost.fuente_dominio,\n      engagement_score: topPost.engagement_score,\n      likes: topPost.likes,\n      reposts: topPost.reposts,\n      replies: topPost.replies,\n      post_uri: topPost.post_uri\n    }\n  }\n];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        560,
-        608
-      ],
-      "id": "d23f9be6-7627-48bc-8091-be25a2b9b6f3",
-      "name": "mayor engagement"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "CREATE TABLE IF NOT EXISTS posts_bluesky (\n  id SERIAL PRIMARY KEY,\n  post_uri TEXT UNIQUE,\n  post_cid TEXT,\n  texto TEXT,\n  autor_handle TEXT,\n  autor_display_name TEXT,\n  fecha_creacion TIMESTAMP,\n  fecha_indexado TIMESTAMP,\n  likes INT,\n  reposts INT,\n  replies INT,\n  quotes INT,\n  engagement_score NUMERIC,\n  fuente_dominio TEXT,\n  es_bridged BOOLEAN,\n  keyword_busqueda TEXT,\n  fecha_insercion TIMESTAMP DEFAULT NOW()\n);",
+        "fieldToSplitOut": "posts",
         "options": {}
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
       "position": [
-        -128,
-        32
+        448,
+        0
       ],
-      "id": "881f576f-9870-469e-8c69-03452dff67ba",
-      "name": "Crear tabla posts_bluesky",
-      "credentials": {
-        "postgres": {
-          "id": "ISsMdjz9UsSpzhEG",
-          "name": "Postgres account"
-        }
-      }
+      "id": "4006685c-f6bc-4237-870e-122b1becfcdf",
+      "name": "Separar posts individuales"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT * FROM posts_bluesky;",
-        "options": {}
+        "jsCode": "const post = $input.item.json;\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  try {\n    fuenteDominio = new URL(externalUri).hostname.replace('www.', '');\n  } catch (e) {\n    fuenteDominio = null;\n  }\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: post.record?.text || '',\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: $('Keyword').item.json.keyword,\n    pais: $('Keyword').item.json.pais\n  }\n};"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        128,
-        320
+        672,
+        0
       ],
-      "id": "cacf8626-4d67-49fa-b5b3-27c54f78af9d",
-      "name": "Traer historial completo",
-      "credentials": {
-        "postgres": {
-          "id": "ISsMdjz9UsSpzhEG",
-          "name": "Postgres account"
-        }
-      }
+      "id": "ff4b5a83-7da5-4f9b-8d72-a2bafc744f90",
+      "name": "Limpieza y recopilación de datos"
     },
     {
       "parameters": {
@@ -438,10 +417,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -96,
-        320
+        896,
+        0
       ],
-      "id": "39eea9a5-ca4f-4faf-afd9-65402d5dfbca",
+      "id": "be26b213-bcf1-4303-9fd5-7df655b951ed",
       "name": "Insertar/actualizar posts",
       "credentials": {
         "postgres": {
@@ -452,54 +431,48 @@
     },
     {
       "parameters": {
-        "fieldToSplitOut": "posts",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
-      "position": [
-        -656,
-        224
-      ],
-      "id": "607e7666-bb7b-4eae-9e74-09cfbac99072",
-      "name": "Separar posts individuales"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        -1472,
-        224
-      ],
-      "id": "4436ef2c-6d59-43c0-962d-6c62668dafdd",
-      "name": "Ejecución con click manual"
-    },
-    {
-      "parameters": {
-        "jsCode": "const paisCount = {};\nfor (const item of items) {\n  const pais = item.json.pais || 'sin_especificar';\n  paisCount[pais] = (paisCount[pais] || 0) + 1;\n}\nreturn Object.keys(paisCount).map(pais => {\n  return {\n    json: {\n      pais: pais,\n      total_posts: paisCount[pais]\n    }\n  };\n});"
+        "jsCode": "return [{\n  json: {\n    ok: true,\n    keyword: $('Keyword').item.json.keyword,\n    pais: $('Keyword').item.json.pais,\n    posts_procesados: items.length\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        560,
-        784
+        1120,
+        0
       ],
-      "id": "1aabd308-3dcd-4658-8900-19d539435800",
-      "name": "Posts por pais"
+      "id": "3d7e95f3-bbc0-4694-a675-8e90fd831d07",
+      "name": "Contar resultados"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "656606f7-af30-47d5-9601-60a23906f5d0",
+      "name": "Respond ok"
     }
   ],
   "connections": {
-    "Limpieza y recopilación de datos": {
+    "Webhook - Nueva búsqueda": {
       "main": [
         [
           {
-            "node": "Crear tabla posts_bluesky",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Insertar/actualizar posts",
+            "node": "Keyword",
             "type": "main",
             "index": 0
           }
@@ -510,18 +483,25 @@
       "main": [
         [
           {
-            "node": "Nodo: LoginBluesky",
+            "node": "Validar keyword y pais",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Frecuencia temporal": {
+    "Validar keyword y pais": {
       "main": [
         [
           {
-            "node": "Promedio diario",
+            "node": "Nodo: LoginBluesky",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond error",
             "type": "main",
             "index": 0
           }
@@ -550,59 +530,6 @@
         ]
       ]
     },
-    "Fuentes": {
-      "main": [
-        [
-          {
-            "node": "Fuente dominante",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Traer historial completo": {
-      "main": [
-        [
-          {
-            "node": "Conteo de items",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fuentes",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Frecuencia temporal",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "mayor engagement",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Posts por pais",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Insertar/actualizar posts": {
-      "main": [
-        [
-          {
-            "node": "Traer historial completo",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Separar posts individuales": {
       "main": [
         [
@@ -614,11 +541,33 @@
         ]
       ]
     },
-    "Ejecución con click manual": {
+    "Limpieza y recopilación de datos": {
       "main": [
         [
           {
-            "node": "Keyword",
+            "node": "Insertar/actualizar posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar/actualizar posts": {
+      "main": [
+        [
+          {
+            "node": "Contar resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contar resultados": {
+      "main": [
+        [
+          {
+            "node": "Respond ok",
             "type": "main",
             "index": 0
           }
@@ -627,16 +576,16 @@
     }
   },
   "pinData": {},
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "03f0c172-76ff-4bd8-a203-f69e57bd8c94",
+  "versionId": "b1051feb-7108-4af5-a8cd-d3d62f867848",
   "meta": {
     "templateCredsSetupCompleted": true
   },
-  "id": "G9Ph61x2oYtTv3iN",
+  "id": "Cb0QNXpkTBdV4hpi",
   "tags": []
 }
