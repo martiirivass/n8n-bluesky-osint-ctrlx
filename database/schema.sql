@@ -20,7 +20,8 @@ CREATE TABLE public.posts_bluesky (
     fuente_dominio text,
     es_bridged boolean,
     keyword_busqueda text,
-    fecha_insercion timestamp without time zone DEFAULT now()
+    fecha_insercion timestamp without time zone DEFAULT now(),
+    pais text
 );
 
 CREATE SEQUENCE public.posts_bluesky_id_seq
