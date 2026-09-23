@@ -1,23 +1,23 @@
 {
-  "name": "Workflow 2: API para el dashboard - Bluesky OSINT",
+  "name": "Workflow 2: API para el dashboard - Bluesky OSINT V2",
   "nodes": [
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  post_uri, texto, autor_handle, autor_display_name,\n  fecha_creacion, likes, reposts, replies, quotes,\n  engagement_score, fuente_dominio, es_bridged, keyword_busqueda\nFROM posts_bluesky\nORDER BY fecha_creacion DESC;",
+        "query": "SELECT\n  post_uri, texto, autor_handle, autor_display_name,\n  fecha_creacion, likes, reposts, replies, quotes,\n  engagement_score, fuente_dominio, es_bridged, keyword_busqueda,\n  pais, fecha_insercion\nFROM posts_bluesky\nORDER BY fecha_creacion DESC;\n",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        -64
+        192,
+        0
       ],
-      "id": "7b982ddf-1e16-4ade-a607-230099de4447",
+      "id": "20e3a8a7-eab4-4076-99cd-bccf06c3f825",
       "name": "Execute a SQL query",
       "credentials": {
         "postgres": {
-          "id": "YlaGPhF7D4F3BzFj",
+          "id": "ISsMdjz9UsSpzhEG",
           "name": "Postgres account"
         }
       }
@@ -29,10 +29,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -208,
-        -64
+        400,
+        0
       ],
-      "id": "fb502a21-452e-467e-8edc-1fcc596e2445",
+      "id": "d485230a-4ce5-49c1-9569-543d9b3f53de",
       "name": "Code in JavaScript"
     },
     {
@@ -53,30 +53,29 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        0,
-        -64
+        608,
+        0
       ],
-      "id": "77647015-95f5-4d3e-af21-609d43ca569b",
+      "id": "fcf1a96d-7124-40fa-888c-026ed652f7e2",
       "name": "Respond to Webhook"
     },
     {
       "parameters": {
-        "path": "http://localhost:5678/webhook/dashboard-data",
+        "path": "dashboard-data",
         "responseMode": "responseNode",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -608,
-        -64
+        0,
+        0
       ],
-      "id": "c08d87e3-b18c-4e2c-8f29-eb8c01a47af5",
+      "id": "72b3c1ca-780e-4f47-afe4-37e5a0a61aab",
       "name": "Webhook",
       "webhookId": "b9f506f8-d01f-4ae2-a90e-150d525f58ff"
     }
   ],
-  "pinData": {},
   "connections": {
     "Execute a SQL query": {
       "main": [
@@ -112,17 +111,17 @@
       ]
     }
   },
+  "pinData": {},
   "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "54d1989d-9a84-4f23-94bd-f4789412ab15",
+  "versionId": "0b09fe45-b38f-47de-81bf-8e53792b066e",
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "0d7bb45de13a4a02af17a7c24f6ba1307df7e971274d6dbf4f9c208f75872410"
+    "templateCredsSetupCompleted": true
   },
-  "id": "NFJhvqQtwz2Heq5e",
+  "id": "gdWPZFFIWboGfrEI",
   "tags": []
 }
