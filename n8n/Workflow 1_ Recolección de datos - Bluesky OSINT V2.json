@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "jsCode": "const post = $input.item.json;\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  try {\n    fuenteDominio = new URL(externalUri).hostname.replace('www.', '');\n  } catch (e) {\n    fuenteDominio = null;\n  }\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: post.record?.text || '',\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: $('Keyword').item.json.keyword\n  }\n};"
+        "jsCode": "const post = $input.item.json;\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  try {\n    fuenteDominio = new URL(externalUri).hostname.replace('www.', '');\n  } catch (e) {\n    fuenteDominio = null;\n  }\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: post.record?.text || '',\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: $('Keyword').item.json.keyword,\n    pais: $('Keyword').item.json.pais\n\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,7 +34,13 @@
             {
               "id": "2ce548c3-1236-40be-ab34-08d8172fcde1",
               "name": "keyword",
-              "value": "ciberseguridad argentina",
+              "value": "ransomware",
+              "type": "string"
+            },
+            {
+              "id": "7f7f5bc2-e39d-46e3-b112-a76877093d81",
+              "name": "pais",
+              "value": "brasil",
               "type": "string"
             }
           ]
@@ -82,7 +88,7 @@
         "url": "https://bsky.social/xrpc/com.atproto.server.createSession",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"identifier\": \"TU_USUARIO.bsky.social\",\n  \"password\": \"TU_CONTRASEÑA\"\n}",
+        "jsonBody": "{\n  \"identifier\": \"martiirivass.bsky.social\",\n  \"password\": \"yllp-6o26-jcib-w7tn\"\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -102,7 +108,7 @@
           "parameters": [
             {
               "name": "q",
-              "value": "={{ $('Keyword').item.json.keyword }}"
+              "value": "={{ $('Keyword').item.json.keyword }} {{ $('Keyword').item.json.pais }}"
             },
             {
               "name": "limit",
@@ -242,7 +248,8 @@
             "fecha_indexado": "={{ $json.fecha_indexado }}",
             "fecha_creacion": "={{ $json.fecha_creacion }}",
             "fuente_dominio": "={{ $json.fuente_dominio }}",
-            "keyword_busqueda": "={{ $json.keyword_busqueda }}"
+            "keyword_busqueda": "={{ $json.keyword_busqueda }}",
+            "pais": "={{ $json.pais }}"
           },
           "matchingColumns": [
             "post_uri"
@@ -403,6 +410,16 @@
               "type": "dateTime",
               "canBeUsedToMatch": false,
               "removed": true
+            },
+            {
+              "id": "pais",
+              "displayName": "pais",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -449,6 +466,19 @@
       ],
       "id": "2daaca45-86cd-45e5-b9eb-66028ed87c28",
       "name": "Ejecución con click manual"
+    },
+    {
+      "parameters": {
+        "jsCode": "const paisCount = {};\nfor (const item of items) {\n  const pais = item.json.pais || 'sin_especificar';\n  paisCount[pais] = (paisCount[pais] || 0) + 1;\n}\nreturn Object.keys(paisCount).map(pais => {\n  return {\n    json: {\n      pais: pais,\n      total_posts: paisCount[pais]\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        224
+      ],
+      "id": "f0d19ee9-3862-4342-bd73-1d421ad8855c",
+      "name": "Posts por pais"
     }
   ],
   "pinData": {},
@@ -546,6 +576,11 @@
             "node": "mayor engagement",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Posts por pais",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -590,7 +625,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "a86c4f14-2e29-4021-93a9-8d061f022f24",
+  "versionId": "945d4e01-d3ff-48b0-bbe3-29cd6686aff2",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0d7bb45de13a4a02af17a7c24f6ba1307df7e971274d6dbf4f9c208f75872410"
