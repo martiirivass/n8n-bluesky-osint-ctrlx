@@ -88,7 +88,7 @@
         "url": "https://bsky.social/xrpc/com.atproto.server.createSession",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"identifier\": \"martiirivass.bsky.social\",\n  \"password\": \"yllp-6o26-jcib-w7tn\"\n}",
+        "jsonBody": "{\n  \"identifier\": \"identifier\",\n  \"password\": \"password\"\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
