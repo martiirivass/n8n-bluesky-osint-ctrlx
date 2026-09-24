@@ -3,3 +3,10 @@
 # Para subir uno a proposito: git add -f <archivo>
 database/backups/
 database/export_posts_latam.json
+
+# Planillas de validacion manual (textos y handles reales de usuarios).
+# Los scripts de validacion/ si se versionan; los CSV con datos no.
+validacion/*.csv
+
+# Cache de Python
+__pycache__/

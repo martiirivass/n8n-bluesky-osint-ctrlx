@@ -297,7 +297,7 @@ El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en 
 - [ ] Repetir la recolección de Brasil con keywords en portugués (las keywords en español favorecen los términos que se usan igual en inglés).
 - [ ] Detectar links compartidos como texto plano vía `record.facets`, no solo como tarjeta embebida (`embed.external.uri`) — hoy se pierden fuentes externas que no generan preview card.
 - [ ] Automatizar la recolección con Schedule Trigger (cuando haya un entorno con disponibilidad continua).
-- [ ] Validación manual de una muestra de posts (relevancia temática).
+- [ ] **Validación manual de relevancia (n=80)**: el sorteo (semilla 2026, reproducible) y el cálculo de estadísticas ya están en `validacion/`; falta la clasificación humana de la planilla. Mide relevancia temática y relevancia geográfica por separado, con acuerdo entre dos evaluadores (kappa) sobre un subconjunto. Es una muestra nueva sobre los 3.908 posts finales, no una continuación de la anterior (cuya semilla y lista no se conservaron).
 - [ ] `.gitignore` del repo.
 - [ ] Sticky Notes explicativas en el canvas de los workflows (útil para mostrar el pipeline en vivo durante la defensa).
 - [ ] Autenticación en los Webhooks si se exponen fuera de `localhost` (hoy están abiertos, aceptable solo para uso local).
