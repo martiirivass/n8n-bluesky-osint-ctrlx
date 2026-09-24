@@ -31,24 +31,54 @@ dashboard.html (form "Nueva búsqueda") → n8n (Workflow 3: bajo demanda) ┘
 
 ## 2. Levantar la infraestructura (Postgres + n8n)
 
-### 2.1. Crear los contenedores
+### 2.1. Crear la red y los contenedores (con volúmenes persistentes)
 
-Si ya tenés contenedores de Postgres y n8n corriendo, saltá a 2.2. Si arrancás de cero:
-
-```bash
-docker run -d --name postgres_n8n -e POSTGRES_PASSWORD=tu_password -p 5432:5432 postgres
-docker run -d --name n8n_local -p 5678:5678 n8nio/n8n:latest
-```
-
-### 2.2. Conectar ambos contenedores a una red común
-
-**Importante**: si los contenedores no comparten red, n8n no puede resolver `postgres_n8n` por nombre (solo por IP, la cual cambia en cada reinicio del contenedor y rompe la conexión). Se recomienda crear la red desde el inicio para evitar este problema:
+Si ya tenés contenedores creados, mirá 2.2 (para comprobar que tengan volumen y migrarlos si no) y después seguí en 2.3. Si arrancás de cero:
 
 ```bash
 docker network create osint-net
-docker network connect osint-net postgres_n8n
-docker network connect osint-net n8n_local
+
+docker run -d --name postgres_n8n --network osint-net --restart unless-stopped \
+  -e POSTGRES_PASSWORD=tu_password -p 5432:5432 \
+  -v postgres_data:/var/lib/postgresql \
+  postgres
+
+docker run -d --name n8n_local --network osint-net --restart unless-stopped \
+  -p 5678:5678 \
+  -v n8n_data:/home/node/.n8n \
+  -e NODE_OPTIONS=--max-old-space-size=4096 \
+  -e EXECUTIONS_DATA_SAVE_ON_SUCCESS=none \
+  -e EXECUTIONS_DATA_PRUNE=true -e EXECUTIONS_DATA_PRUNE_MAX_COUNT=100 \
+  n8nio/n8n:latest
 ```
+
+**Por qué los volúmenes (`-v`) no son opcionales.** Sin ellos, los datos viven *dentro* del contenedor: si se lo elimina (`docker rm`), se pierden los workflows, las credenciales de n8n y la clave que las encripta. El volumen `n8n_data` guarda todo el directorio de datos de n8n (`/home/node/.n8n`) y `postgres_data` guarda la base con los posts. Cuidado con `docker system prune --volumes` y `docker rm -v`, que sí borran volúmenes.
+
+**Por qué las variables de n8n.** En la recolección con paginación cada ejecución maneja cientos de posts; sin estos ajustes n8n llegó a quedarse sin memoria (`JavaScript heap out of memory`) y su base interna creció a más de 600 MB solo con el historial de ejecuciones. `NODE_OPTIONS` sube el tope de memoria a 4 GB, `EXECUTIONS_DATA_SAVE_ON_SUCCESS=none` evita guardar los datos de las ejecuciones exitosas (los errores sí se guardan), y `EXECUTIONS_DATA_PRUNE*` conserva solo las últimas 100. `--restart unless-stopped` levanta los contenedores solos cuando arranca Docker.
+
+**Respaldo de los datos** (recomendado antes de cualquier cambio grande):
+
+```bash
+docker exec postgres_n8n pg_dump -U postgres -d postgres -t posts_bluesky > respaldo_posts.sql
+```
+
+### 2.2. Si ya tenías contenedores creados sin volumen
+
+Si armaste n8n con el comando viejo (sin `-v`), se puede migrar **sin perder nada**. Con n8n detenido, se copia su directorio de datos a un volumen y se recrea el contenedor con **la misma imagen exacta** (para no disparar migraciones por cambio de versión):
+
+```bash
+docker stop n8n_local
+docker volume create n8n_data
+IMG=$(docker inspect n8n_local --format '{{.Image}}')
+docker create --name n8n_new --network osint-net -p 5678:5678 --restart unless-stopped \
+  -v n8n_data:/home/node/.n8n -e NODE_OPTIONS=--max-old-space-size=4096 \
+  -e EXECUTIONS_DATA_SAVE_ON_SUCCESS=none -e EXECUTIONS_DATA_PRUNE=true -e EXECUTIONS_DATA_PRUNE_MAX_COUNT=100 $IMG
+docker cp n8n_local:/home/node/.n8n/. - | docker cp - n8n_new:/home/node/.n8n/
+docker rename n8n_local n8n_local_old && docker rename n8n_new n8n_local
+docker start n8n_local
+```
+
+Quedan el contenedor viejo detenido (`n8n_local_old`) como respaldo; se elimina cuando se confirme que todo funciona. Ojo: `docker cp` no copia directo entre contenedores, por eso el `tar` intermedio; y hay que verificar después que las credenciales sigan funcionando (por ejemplo, con una búsqueda real), porque dependen de la clave de encriptación que vive en ese directorio.
 
 ### 2.3. Verificar que ambos estén corriendo
 
@@ -217,6 +247,12 @@ El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en 
 - **`pagina_recoleccion` se pisa.** Como el guardado es un upsert por `post_uri`, si un post reaparece en otra corrida queda con la página de la **última** corrida, no de la primera. Hoy 4.015 de los 4.016 posts tienen página (todos fueron re-recolectados con paginación); un post que solo apareció en una corrida anterior a la paginación tendría `NULL`.
 - **`keyword_busqueda` también se pisa**, por el mismo motivo: guarda la última búsqueda que encontró el post, por lo que los desgloses por keyword subestiman.
 - **Colisión México / Nuevo México.** En la recolección completa, 81 de 1.509 posts con `pais = 'mexico'` (5,4 %) mencionan «New Mexico» (EE. UU.) y quedaron marcados con `posible_falso_positivo_geografico`; en la primera muestra de 600 posts eran 21 (3,5 %), lo que sugiere que la colisión pesa más a mayor profundidad histórica. El flag lo puso el propio workflow de n8n (verificado de punta a punta con datos reales: 0 posts sin marcar que debieran estarlo, 0 marcados en otros países). No detecta variantes como `new-mexico` (con guion). El dashboard todavía no excluye estos posts; hoy el Workflow 2 ya entrega el campo.
+- **Keywords probadas y descartadas** (con respaldo en `database/backups/`, no versionado por contener handles reales):
+  - `CERT`: de 126 posts etiquetados, solo 10 (8 %) usaban la sigla; el resto eran coincidencias sueltas con otras palabras (pasaportes, gastronomía, videojuegos). Se borraron los 113 de ruido puro (sin sigla en mayúscula ni ningún término de seguridad) y se conservaron 13.
+  - `CSIRT` (reemplazo propuesto): preciso pero de volumen casi nulo, 11 posts entre los 5 países (Chile 9, Colombia 1, México 1, Argentina 0, Brasil 0). No permite comparar entre países.
+  - `incidente de seguridad`: 149 posts, en su gran mayoría de seguridad **pública** (tiroteos, riñas, operativos policiales), no informática. Solo el 0-25 % tenía algún término informático. Se borraron 141; los otros 8 ya habían sido hallados por otras keywords y se les restauró su etiqueta original.
+  - `ciberincidente`: sin ambigüedad de sentido pero sin volumen (0 resultados en 4 países y 1 en México). Los datos de los 5 países quedan con las 8 keywords base restantes.
+  Lección metodológica: las palabras cortas o genéricas ("CERT", "seguridad") colisionan con otros significados; los términos que obligan al sentido informático ("ciberincidente") son precisos pero casi no se usan en redes sociales. La cobertura de un término técnico y su precisión tienden a ir en sentidos opuestos.
 - **Bugs corregidos en los workflows de recolección** (los datos recolectados antes de la corrección están submuestreados): el nodo de limpieza corría en modo «All Items» y procesaba solo el primer resultado de cada búsqueda (1 post de ~50-100), y la extracción de `fuente_dominio` usaba `new URL()`, que falla en el sandbox del nodo Code y dejaba el campo en `null` en todos los posts.
 
 ---

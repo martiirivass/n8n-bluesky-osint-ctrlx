@@ -1,0 +1,5 @@
+# Datos con handles y textos reales de usuarios de Bluesky.
+# No se suben por defecto (ver README, seccion 8 sobre anonimizacion).
+# Para subir uno a proposito: git add -f <archivo>
+database/backups/
+database/export_posts_latam.json
