@@ -4,7 +4,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  post_uri, texto, autor_handle, autor_display_name,\n  fecha_creacion, likes, reposts, replies, quotes,\n  engagement_score, fuente_dominio, es_bridged, keyword_busqueda,\n  pais, fecha_insercion\nFROM posts_bluesky\nORDER BY fecha_creacion DESC;\n",
+        "query": "SELECT\n  post_uri, texto, autor_handle, autor_display_name,\n  fecha_creacion, likes, reposts, replies, quotes,\n  engagement_score, fuente_dominio, es_bridged, keyword_busqueda,\n  pais, fecha_insercion,\n  posible_falso_positivo_geografico, pagina_recoleccion\nFROM posts_bluesky\nORDER BY fecha_creacion DESC;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
