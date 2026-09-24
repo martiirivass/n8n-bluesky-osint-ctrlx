@@ -21,7 +21,9 @@ CREATE TABLE public.posts_bluesky (
     es_bridged boolean,
     keyword_busqueda text,
     fecha_insercion timestamp without time zone DEFAULT now(),
-    pais text
+    pais text,
+    posible_falso_positivo_geografico boolean DEFAULT false,
+    pagina_recoleccion integer
 );
 
 CREATE SEQUENCE public.posts_bluesky_id_seq

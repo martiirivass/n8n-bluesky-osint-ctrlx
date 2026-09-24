@@ -166,7 +166,27 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "cursor",
+                    "value": "={{ $response.body.cursor }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.cursor }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10,
+              "requestInterval": 500
+            }
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -194,7 +214,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const post = $input.item.json;\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  const m = String(externalUri).match(/^https?:\\/\\/([^\\/?#:]+)/i);\n  fuenteDominio = m ? m[1].toLowerCase().replace(/^www\\./, '') : null;\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: post.record?.text || '',\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: $('Keyword').item.json.keyword,\n    pais: $('Keyword').item.json.pais\n  }\n};"
+        "jsCode": "const post = $input.item.json;\n\n// Colisiones geográficas conocidas. Para cada país buscado, frases que indican que el\n// post habla de otro lugar con el mismo nombre. Solo se MARCA, nunca se descarta.\n// Para sumar otro caso, agregar una entrada (ej.: colombia: [/\\bcolumbia\\b/i]).\nconst COLISIONES_GEOGRAFICAS = {\n  mexico: [/\\bnew\\s+mexico\\b/i]\n};\n\nfunction normalizarPais(pais) {\n  return String(pais || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim();\n}\n\nfunction esPosibleFalsoPositivoGeografico(pais, texto) {\n  const patrones = COLISIONES_GEOGRAFICAS[normalizarPais(pais)] || [];\n  return patrones.some(re => re.test(texto || ''));\n}\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  const m = String(externalUri).match(/^https?:\\/\\/([^\\/?#:]+)/i);\n  fuenteDominio = m ? m[1].toLowerCase().replace(/^www\\./, '') : null;\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nconst busqueda = $('Keyword').first().json;\nconst texto = post.record?.text || '';\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: texto,\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: busqueda.keyword,\n    pais: busqueda.pais,\n    posible_falso_positivo_geografico: esPosibleFalsoPositivoGeografico(busqueda.pais, texto),\n    pagina_recoleccion: post.pagina_recoleccion ?? null\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -237,7 +257,9 @@
             "fecha_creacion": "={{ $json.fecha_creacion }}",
             "fuente_dominio": "={{ $json.fuente_dominio }}",
             "keyword_busqueda": "={{ $json.keyword_busqueda }}",
-            "pais": "={{ $json.pais }}"
+            "pais": "={{ $json.pais }}",
+            "posible_falso_positivo_geografico": "={{ $json.posible_falso_positivo_geografico }}",
+            "pagina_recoleccion": "={{ $json.pagina_recoleccion }}"
           },
           "matchingColumns": [
             "post_uri"
@@ -408,6 +430,26 @@
               "type": "string",
               "canBeUsedToMatch": false,
               "removed": false
+            },
+            {
+              "id": "posible_falso_positivo_geografico",
+              "displayName": "posible_falso_positivo_geografico",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "pagina_recoleccion",
+              "displayName": "pagina_recoleccion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -466,6 +508,19 @@
       ],
       "id": "656606f7-af30-47d5-9601-60a23906f5d0",
       "name": "Respond ok"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Numera cada página de resultados (1 = la primera que devuelve la API) y se lo agrega a\n// cada post, para poder analizar después el sesgo de recencia entre páginas tempranas y tardías.\nreturn $input.all().map((item, i) => ({\n  json: {\n    ...item.json,\n    posts: (item.json.posts || []).map(p => ({ ...p, pagina_recoleccion: i + 1 }))\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        120
+      ],
+      "id": "dfebf3bb-db8e-47d1-8c18-00bd82a4a08a",
+      "name": "Etiquetar página"
     }
   ],
   "connections": {
@@ -524,7 +579,7 @@
       "main": [
         [
           {
-            "node": "Separar posts individuales",
+            "node": "Etiquetar página",
             "type": "main",
             "index": 0
           }
@@ -569,6 +624,17 @@
         [
           {
             "node": "Respond ok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Etiquetar página": {
+      "main": [
+        [
+          {
+            "node": "Separar posts individuales",
             "type": "main",
             "index": 0
           }
