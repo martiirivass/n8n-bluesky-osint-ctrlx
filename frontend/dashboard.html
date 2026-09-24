@@ -418,6 +418,125 @@
   .new-search-status.ok { color: #7FB88A; }
   .new-search-status.err { color: var(--danger); }
 
+  /* ---------- nota metodológica ---------- */
+
+  .method-note {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--sky);
+    background: var(--panel);
+    padding: 12px 18px;
+    margin-bottom: 32px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.55;
+  }
+  .method-note b { color: var(--text); font-weight: 600; }
+  .method-note summary {
+    cursor: pointer;
+    color: var(--sky);
+    font-size: 12.5px;
+    margin-top: 6px;
+    width: fit-content;
+  }
+  .method-note summary:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+  .method-note ul { margin: 10px 0 2px; padding-left: 18px; }
+  .method-note li { margin-bottom: 6px; }
+
+  /* ---------- comparación entre países ---------- */
+
+  .compare-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); }
+  .compare { min-width: 640px; }
+
+  .compare-head, .compare-row {
+    display: grid;
+    grid-template-columns: 1fr 2.4fr 0.9fr 0.9fr 0.9fr 0.9fr;
+    gap: 14px;
+    align-items: center;
+    padding: 11px 20px;
+    text-align: left;
+  }
+  .compare-head {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    border-bottom: 1px solid var(--line);
+  }
+  .compare-row {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-row:hover { background: var(--panel-raised); }
+  .compare-row:focus-visible { outline: 2px solid var(--sky); outline-offset: -2px; }
+  .compare-row.selected { background: #E3A44C14; box-shadow: inset 3px 0 0 var(--amber); }
+  .compare-pais { text-transform: capitalize; font-weight: 500; }
+  .compare-num { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .compare-posts { display: flex; align-items: center; gap: 10px; }
+  .compare-bar-track { flex: 1; height: 8px; background: var(--panel-raised); border-radius: 2px; overflow: hidden; }
+  .compare-bar-fill { height: 100%; background: var(--sky); border-radius: 2px; }
+  .compare-row.selected .compare-bar-fill { background: var(--amber); }
+  .compare-posts .compare-num { min-width: 44px; text-align: right; }
+  .compare-note { margin-top: 10px; font-size: 12px; color: var(--text-faint); font-family: 'IBM Plex Mono', monospace; }
+
+  /* ---------- ver más / ver menos ---------- */
+
+  .fuentes-list.expanded { max-height: 420px; overflow-y: auto; padding-right: 6px; }
+
+  .fuentes-toggle {
+    margin-top: 12px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--sky);
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    padding: 6px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .fuentes-toggle:hover { border-color: var(--sky); background: #6FA3C712; }
+
+  .more-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    border: 1px solid var(--line);
+    border-top: none;
+    background: var(--panel);
+    padding: 14px 22px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  .more-bar .more-count { margin-right: auto; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  .more-bar button {
+    background: transparent;
+    border: 1px solid var(--sky-dim);
+    color: var(--sky);
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .more-bar button:hover { background: #6FA3C712; border-color: var(--sky); }
+  .more-bar button.ghost { border-color: var(--line); color: var(--text-dim); }
+
+  .tl-note { font-size: 12px; color: var(--text-faint); margin-top: 10px; font-family: 'IBM Plex Mono', monospace; }
+  .timeline-chart.dense { gap: 2px; }
+  .timeline-chart.dense .tl-bar { max-width: none; }
+
   /* ---------- SECTIONS ---------- */
 
   section { margin-bottom: 44px; }
@@ -676,7 +795,7 @@
     }
     body { background: #fff; }
     #connectionLine, input#endpoint, .refresh-row, .post-controls { display: none !important; }
-    .new-search-panel, .filters-bar { display: none !important; }
+    .new-search-panel, .filters-bar, .more-bar button, .fuentes-toggle { display: none !important; }
     .kpi-strip, .panel, .callout, .post-card {
       break-inside: avoid;
       page-break-inside: avoid;
@@ -716,6 +835,20 @@
       </div>
     </div>
   </header>
+
+  <aside class="method-note" aria-label="Nota metodológica">
+    <div><b>Cómo leer estos datos:</b> el país es el término con el que se buscó, no la ubicación del autor · cada búsqueda trae como máximo 100 resultados.</div>
+    <details>
+      <summary>Ver todas las limitaciones</summary>
+      <ul>
+        <li><b>País:</b> se busca «keyword + país» en el texto de los posts. Un post de otro país que menciona a México cuenta como México.</li>
+        <li><b>Tope de 100 resultados por búsqueda</b> (límite de la API <code>searchPosts</code> de Bluesky). Cuando una búsqueda llega al tope, la muestra está truncada: las comparaciones entre países son entre muestras, no entre totales.</li>
+        <li><b>Keyword:</b> cada post guarda solo la última búsqueda que lo encontró. Si aparece por varias keywords queda con una sola, así que los desgloses por keyword subestiman.</li>
+        <li><b>Idioma:</b> las keywords están en español. En Brasil favorecen los términos que se usan igual en inglés (<em>ransomware</em>, <em>malware</em>, <em>hacking</em>).</li>
+        <li><b>Alcance:</b> solo publicaciones públicas de Bluesky. No representa a la población general de cada país.</li>
+      </ul>
+    </details>
+  </aside>
 
   <div class="new-search-panel">
     <div class="section-head">
@@ -848,6 +981,53 @@ const statusText = $('#statusText');
 let lastData = null;
 const postState = { query: '', sortBy: 'fecha_desc' };
 const filterState = { pais: '', keyword: '' };
+
+const FUENTES_DEFAULT = 6;
+const POSTS_DEFAULT = 10;
+const POSTS_STEP = 25;
+const viewState = { fuentesExpanded: false, postsVisible: POSTS_DEFAULT };
+
+const fmtN = (n) => Number(n).toLocaleString('es-AR');
+const resetPostsView = () => { viewState.postsVisible = POSTS_DEFAULT; };
+
+const fmtDec = (n) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (x) => Math.round(x * 100) + '%';
+
+function median(nums) {
+  if (!nums.length) return 0;
+  const s = nums.slice().sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+function computeCountryStats(posts) {
+  const groups = {};
+  posts.forEach(p => {
+    const k = p.pais || 'sin_especificar';
+    (groups[k] = groups[k] || []).push(p);
+  });
+  return Object.entries(groups).map(([pais, ps]) => {
+    const scores = ps.map(p => parseFloat(p.engagement_score || 0));
+    return {
+      pais,
+      n: ps.length,
+      engProm: scores.reduce((a, b) => a + b, 0) / ps.length,
+      conInteraccion: scores.filter(x => x > 0).length / ps.length,
+      conFuente: ps.filter(p => p.fuente_dominio).length / ps.length,
+      bridged: ps.filter(p => p.es_bridged).length / ps.length
+    };
+  }).sort((a, b) => b.n - a.n);
+}
+
+function groupTimelineByMonth(tl) {
+  const m = {};
+  tl.forEach(t => {
+    const [, mo, y] = t.date.split('/');
+    const k = `${mo}/${y}`;
+    m[k] = (m[k] || 0) + t.total;
+  });
+  return Object.entries(m).map(([date, total]) => ({ date, total }));
+}
 
 function normalize(s) {
   if (!s) return '';
@@ -1034,8 +1214,11 @@ function render(data) {
   const fuentes = agg.fuentes.filter(f => f.fuente !== 'sin_fuente_externa').sort((a,b) => b.total - a.total);
   const sinFuente = agg.fuentes.find(f => f.fuente === 'sin_fuente_externa');
   const maxFuenteTotal = Math.max(1, ...fuentes.map(f => f.total));
-  const timeline = agg.frecuencia_temporal;
+  const groupedByMonth = agg.frecuencia_temporal.length > 31;
+  const timeline = groupedByMonth ? groupTimelineByMonth(agg.frecuencia_temporal) : agg.frecuencia_temporal;
   const maxTl = Math.max(1, ...timeline.map(t => t.total));
+  const dense = timeline.length > 18;
+  const labelStep = Math.max(1, Math.ceil(timeline.length / 8));
   const top = agg.mayor_engagement;
   const bridged = r.posts_bridged ?? 0;
   const nativos = r.posts_nativos ?? 0;
@@ -1059,11 +1242,11 @@ function render(data) {
   html += `
   <div class="kpi-strip">
     <div class="kpi">
-      <div class="kpi-value">${r.total_posts ?? '—'}</div>
+      <div class="kpi-value">${r.total_posts != null ? fmtN(r.total_posts) : '—'}</div>
       <div class="kpi-label">Publicaciones recolectadas</div>
     </div>
     <div class="kpi">
-      <div class="kpi-value">${r.total_dias_analizados ?? '—'}</div>
+      <div class="kpi-value">${r.total_dias_analizados != null ? fmtN(r.total_dias_analizados) : '—'}</div>
       <div class="kpi-label">Días con actividad registrada</div>
     </div>
     <div class="kpi">
@@ -1078,29 +1261,71 @@ function render(data) {
         </svg>
         <div class="donut-center">${totalAcc > 0 ? pctBridged + '%' : '—'}</div>
       </div>
-      <div class="kpi-label">Bridged <b style="color:var(--text)">${bridged}</b> / Nativas <b style="color:var(--text)">${nativos}</b></div>
+      <div class="kpi-label">Bridged <b style="color:var(--text)">${fmtN(bridged)}</b> / Nativas <b style="color:var(--text)">${fmtN(nativos)}</b></div>
     </div>
   </div>`;
+
+  // comparación entre países (respeta el filtro de keyword, no el de país)
+  const cmpPosts = filterState.keyword ? allPosts.filter(p => p.keyword_busqueda === filterState.keyword) : allPosts;
+  const cmp = computeCountryStats(cmpPosts);
+  if (cmp.length > 1) {
+    const maxCmp = Math.max(1, ...cmp.map(c => c.n));
+    const selNorm = normalize(filterState.pais);
+    html += `<section>
+      <div class="section-head">
+        <h2 class="section-title">Comparación entre países</h2>
+        <div class="section-note">click en una fila para filtrar · ${filterState.keyword ? `keyword: “${esc(filterState.keyword)}”` : 'todas las keywords'}</div>
+      </div>
+      <div class="compare-wrap"><div class="compare" role="table" aria-label="Comparación entre países">
+        <div class="compare-head" role="row">
+          <span role="columnheader">País</span><span role="columnheader">Publicaciones</span>
+          <span role="columnheader" title="Promedio del engagement_score">Eng. prom.</span>
+          <span role="columnheader" title="Porcentaje de posts con al menos una interacción (engagement_score mayor a 0)">Con interacción</span>
+          <span role="columnheader" title="Porcentaje de posts que comparten un link con dominio detectado">Con fuente</span>
+          <span role="columnheader" title="Porcentaje de posts de cuentas puenteadas desde otra plataforma">Bridged</span>
+        </div>`;
+    cmp.forEach(c => {
+      const sel = selNorm && normalize(c.pais) === selNorm;
+      html += `<button type="button" class="compare-row${sel ? ' selected' : ''}" role="row" data-action="pais-select" data-pais="${esc(c.pais)}" aria-pressed="${sel ? 'true' : 'false'}">
+          <span class="compare-pais" role="cell">${esc(c.pais)}</span>
+          <span class="compare-posts" role="cell"><span class="compare-bar-track"><span class="compare-bar-fill" style="display:block;width:${(c.n / maxCmp) * 100}%"></span></span><span class="compare-num">${fmtN(c.n)}</span></span>
+          <span class="compare-num" role="cell">${fmtDec(c.engProm)}</span>
+          <span class="compare-num" role="cell">${fmtPct(c.conInteraccion)}</span>
+          <span class="compare-num" role="cell">${fmtPct(c.conFuente)}</span>
+          <span class="compare-num" role="cell">${fmtPct(c.bridged)}</span>
+        </button>`;
+    });
+    html += `</div></div>
+      <div class="compare-note">el engagement promedio lo dominan pocos posts virales; por eso se muestra también el % de posts con alguna interacción</div>
+    </section>`;
+  }
 
   // Fuentes + timeline
   html += `<section><div class="two-col">`;
 
+  const fuentesVisible = viewState.fuentesExpanded ? fuentes : fuentes.slice(0, FUENTES_DEFAULT);
+
   html += `<div class="panel">
-    <div class="section-head"><h2 class="section-title">Fuentes citadas</h2></div>`;
+    <div class="section-head"><h2 class="section-title">Fuentes citadas</h2><div class="section-note">${fmtN(fuentes.length)} dominio(s) distintos</div></div>`;
   if (fuentes.length === 0) {
     html += `<div class="section-note">Ninguna publicación cita una fuente externa todavía.</div>`;
   } else {
-    fuentes.forEach(f => {
+    html += `<div class="fuentes-list${viewState.fuentesExpanded ? ' expanded' : ''}">`;
+    fuentesVisible.forEach(f => {
       const pct = (f.total / maxFuenteTotal) * 100;
       html += `<div class="fuente-row">
         <div class="fuente-name" title="${esc(f.fuente)}">${esc(f.fuente)}</div>
         <div class="fuente-bar-track"><div class="fuente-bar-fill" style="width:${pct}%"></div></div>
-        <div class="fuente-count">${f.total}</div>
+        <div class="fuente-count">${fmtN(f.total)}</div>
       </div>`;
     });
+    html += `</div>`;
+    if (fuentes.length > FUENTES_DEFAULT) {
+      html += `<button type="button" class="fuentes-toggle" data-action="fuentes-toggle" aria-expanded="${viewState.fuentesExpanded}">${viewState.fuentesExpanded ? 'Ver menos' : `Ver las ${fmtN(fuentes.length)} fuentes`}</button>`;
+    }
   }
   if (sinFuente) {
-    html += `<div class="section-note" style="margin-top:10px;">+ ${sinFuente.total} publicación(es) sin link externo (contenido original)</div>`;
+    html += `<div class="section-note" style="margin-top:10px;">+ ${fmtN(sinFuente.total)} publicación(es) sin link externo (contenido original)</div>`;
   }
   html += `</div>`;
 
@@ -1109,16 +1334,17 @@ function render(data) {
   if (timeline.length === 0) {
     html += `<div class="section-note">Sin datos suficientes para trazar la línea de tiempo.</div>`;
   } else {
-    html += `<div class="timeline-chart">`;
-    timeline.forEach(t => {
-      const h = Math.max(6, (t.total / maxTl) * 100);
-      html += `<div class="tl-col">
-        <div class="tl-value">${t.total}</div>
+    html += `<div class="timeline-chart${dense ? ' dense' : ''}">`;
+    timeline.forEach((t, i) => {
+      const h = Math.max(3, (t.total / maxTl) * 100);
+      html += `<div class="tl-col" title="${esc(t.date)}: ${fmtN(t.total)} publicaciones">
+        ${dense ? '' : `<div class="tl-value">${fmtN(t.total)}</div>`}
         <div class="tl-bar" style="height:${h}%"></div>
-        <div class="tl-date">${esc(t.date)}</div>
+        <div class="tl-date">${(!dense || i % labelStep === 0) ? esc(t.date) : '&nbsp;'}</div>
       </div>`;
     });
     html += `</div>`;
+    html += `<div class="tl-note">${groupedByMonth ? 'agrupado por mes · ' : ''}pico: ${fmtN(maxTl)} publicaciones${groupedByMonth ? ' en un mes' : ' en un día'}</div>`;
   }
   html += `</div>`;
 
@@ -1159,7 +1385,7 @@ function render(data) {
         <button id="exportCsvBtn" type="button">Exportar CSV</button>
       </div>
     </div>
-    <div class="section-note" style="margin-bottom:12px;">${filteredPosts.length} de ${posts.length} publicaciones${postState.query ? ` · filtro: “${esc(postState.query)}”` : ''} · keyword de búsqueda: “${esc(posts[0]?.keyword_busqueda || '—')}”</div>`;
+    <div class="section-note" style="margin-bottom:12px;">${fmtN(filteredPosts.length)} de ${fmtN(posts.length)} publicaciones${postState.query ? ` · filtro: “${esc(postState.query)}”` : ''} · keyword de búsqueda: “${esc(posts[0]?.keyword_busqueda || '—')}”</div>`;
 
   if (allPosts.length === 0) {
     html += `<div class="state-box">Todavía no hay publicaciones almacenadas. Corré el workflow de recolección en n8n.</div>`;
@@ -1168,12 +1394,12 @@ function render(data) {
   } else if (filteredPosts.length === 0) {
     html += `<div class="state-box">Ninguna publicación coincide con “${esc(postState.query)}”.</div>`;
   } else {
-    filteredPosts.forEach(p => {
+    filteredPosts.slice(0, viewState.postsVisible).forEach(p => {
       html += `<div class="post-card">
         <div class="post-date">${fmtDate(p.fecha_creacion)}</div>
         <div class="post-body">
           <div class="post-text">${esc(p.texto)}</div>
-          <div class="post-author">@${esc(p.autor_handle)}${p.autor_display_name ? ' — ' + esc(p.autor_display_name) : ''}${p.es_bridged ? '<span class="badge">bridged</span>' : ''}</div>
+          <div class="post-author">@${esc(p.autor_handle)}${p.autor_display_name ? ' — ' + esc(p.autor_display_name) : ''}${p.pais ? `<span class="badge">${esc(p.pais)}</span>` : ''}${p.es_bridged ? '<span class="badge">bridged</span>' : ''}</div>
         </div>
         <div class="post-stats">
           engagement <b>${p.engagement_score}</b><br>
@@ -1182,6 +1408,15 @@ function render(data) {
         </div>
       </div>`;
     });
+
+    const total = filteredPosts.length;
+    const shown = Math.min(viewState.postsVisible, total);
+    html += `<div class="more-bar">
+      <span class="more-count">Mostrando ${fmtN(shown)} de ${fmtN(total)}</span>
+      ${shown < total ? `<button type="button" data-action="posts-more">Mostrar ${fmtN(Math.min(POSTS_STEP, total - shown))} más</button>
+      <button type="button" data-action="posts-all">Mostrar todas (${fmtN(total)})</button>` : ''}
+      ${viewState.postsVisible > POSTS_DEFAULT ? '<button type="button" class="ghost" data-action="posts-less">Colapsar</button>' : ''}
+    </div>`;
   }
 
   html += `</section>`;
@@ -1230,6 +1465,7 @@ $('#autoRefreshInterval').addEventListener('change', updateAutoRefresh);
 app.addEventListener('input', (e) => {
   if (e.target.id === 'postSearch') {
     postState.query = e.target.value;
+    resetPostsView();
     if (lastData) {
       render(lastData);
       const el = $('#postSearch');
@@ -1241,27 +1477,45 @@ app.addEventListener('input', (e) => {
 app.addEventListener('change', (e) => {
   if (e.target.id === 'postSort') {
     postState.sortBy = e.target.value;
+    resetPostsView();
     if (lastData) render(lastData);
   }
 });
 
 app.addEventListener('click', (e) => {
-  if (e.target.id === 'exportCsvBtn') exportPostsCsv();
+  if (e.target.id === 'exportCsvBtn') { exportPostsCsv(); return; }
+  const btn = e.target.closest('[data-action]');
+  if (!btn || !lastData) return;
+  const action = btn.getAttribute('data-action');
+  if (action === 'pais-select') {
+    const pais = btn.getAttribute('data-pais');
+    filterState.pais = normalize(filterState.pais) === normalize(pais) ? '' : pais;
+    resetPostsView();
+  }
+  else if (action === 'fuentes-toggle') viewState.fuentesExpanded = !viewState.fuentesExpanded;
+  else if (action === 'posts-more') viewState.postsVisible += POSTS_STEP;
+  else if (action === 'posts-all') viewState.postsVisible = Infinity;
+  else if (action === 'posts-less') resetPostsView();
+  else return;
+  render(lastData);
 });
 
 $('#filterPais').addEventListener('change', (e) => {
   filterState.pais = e.target.value;
+  resetPostsView();
   if (lastData) render(lastData);
 });
 
 $('#filterKeyword').addEventListener('change', (e) => {
   filterState.keyword = e.target.value;
+  resetPostsView();
   if (lastData) render(lastData);
 });
 
 $('#clearFiltersBtn').addEventListener('click', () => {
   filterState.pais = '';
   filterState.keyword = '';
+  resetPostsView();
   if (lastData) render(lastData);
 });
 
@@ -1270,6 +1524,7 @@ $('.map-wrap').addEventListener('click', (e) => {
   if (!country) return;
   const pais = country.getAttribute('data-pais');
   filterState.pais = (normalize(filterState.pais) === pais) ? '' : pais;
+  resetPostsView();
   if (lastData) render(lastData);
 });
 
