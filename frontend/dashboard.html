@@ -837,14 +837,14 @@
   </header>
 
   <aside class="method-note" aria-label="Nota metodológica">
-    <div><b>Cómo leer estos datos:</b> el país es el término con el que se buscó, no la ubicación del autor · cada búsqueda trae hasta 1.000 resultados (10 páginas de 100); las hechas antes de la paginación trajeron solo los 100 más recientes.</div>
+    <div><b>Cómo leer estos datos:</b> el país es el término con el que se buscó, no la ubicación del autor · cada búsqueda trae hasta 1.000 resultados (10 páginas de 100); la recolección actual recorre todas las páginas que entrega la API.</div>
     <details>
       <summary>Ver todas las limitaciones</summary>
       <ul>
         <li><b>País:</b> se busca «keyword + país» en el texto de los posts. Un post de otro país que menciona a México cuenta como México.</li>
         <li><b>Tope por búsqueda:</b> la API <code>searchPosts</code> entrega 100 resultados por página y el pipeline pagina hasta 10 páginas (1.000 resultados). Si una búsqueda llega al tope, la muestra está truncada: las comparaciones entre países son entre muestras, no entre totales.</li>
-        <li><b>Sesgo de recencia:</b> la API devuelve primero lo más reciente. Las corridas anteriores a la paginación tienen solo esa primera página, así que buena parte de los datos históricos está sesgada hacia el presente. Cada post nuevo guarda su <code>pagina_recoleccion</code> (la de la última corrida que lo trajo) para poder medir ese sesgo.</li>
-        <li><b>México / Nuevo México:</b> alrededor del 3,5 % de los posts con país «mexico» mencionan «New Mexico» (EE. UU.). Están marcados en la base (<code>posible_falso_positivo_geografico</code>), pero este dashboard todavía los cuenta.</li>
+        <li><b>Sesgo de recencia:</b> la API devuelve primero lo más reciente y la paginación lo reduce pero no lo elimina: los posts de las primeras páginas son mucho más recientes que los de las últimas. Cada post guarda su <code>pagina_recoleccion</code> (la de la última corrida que lo trajo) para poder medirlo.</li>
+        <li><b>México / Nuevo México:</b> entre el 3 % y el 6 % de los posts con país «mexico» mencionan «New Mexico» (EE. UU.). Están marcados en la base (<code>posible_falso_positivo_geografico</code>), pero este dashboard todavía los cuenta.</li>
         <li><b>Keyword:</b> cada post guarda solo la última búsqueda que lo encontró. Si aparece por varias keywords queda con una sola, así que los desgloses por keyword subestiman.</li>
         <li><b>Idioma:</b> las keywords están en español. En Brasil favorecen los términos que se usan igual en inglés (<em>ransomware</em>, <em>malware</em>, <em>hacking</em>).</li>
         <li><b>Alcance:</b> solo publicaciones públicas de Bluesky. No representa a la población general de cada país.</li>
