@@ -14,8 +14,8 @@ dashboard.html (form "Nueva búsqueda") → n8n (Workflow 3: bajo demanda) ┘
                            dashboard.html (front)
 ```
 
-- **Workflow 1 — Recolección manual**: se ejecuta a mano desde el editor de n8n. Login en Bluesky → búsqueda por keyword + país → separación de posts → limpieza/cálculo de métricas → guardado en Postgres (con deduplicación por `post_uri`).
-- **Workflow 3 — Nueva búsqueda (bajo demanda)**: mismo pipeline de recolección que el Workflow 1, pero disparado por un Webhook POST en vez del botón manual. Permite lanzar una búsqueda nueva (keyword + país) directamente desde el formulario del dashboard, sin abrir n8n.
+- **Workflow 1 — Recolección manual**: se ejecuta a mano desde el editor de n8n. Login en Bluesky → búsqueda por keyword + país con **paginación por cursor** (hasta 10 páginas de 100 resultados) → separación de posts → limpieza/cálculo de métricas → guardado en Postgres (con deduplicación por `post_uri`).
+- **Workflow 3 — Nueva búsqueda (bajo demanda)**: mismo pipeline de recolección que el Workflow 1 (incluida la paginación), pero disparado por un Webhook POST en vez del botón manual. Permite lanzar una búsqueda nueva (keyword + país) directamente desde el formulario del dashboard, sin abrir n8n.
 - **Workflow 2 — API para el dashboard**: siempre activo. Expone un Webhook que trae el historial completo de Postgres, calcula agregados (fuentes, frecuencia temporal, mayor engagement, posts por país) y devuelve todo en un JSON.
 - **dashboard.html**: página estática (dark, estilo dossier editorial) que consume el Webhook y renderiza las métricas, el mapa interactivo y el listado de posts. No necesita servidor propio, se abre directo en el navegador.
 
@@ -163,7 +163,9 @@ El dashboard trae un campo **"Endpoint del webhook"** en el formulario de "Nueva
 2. En el panel **"Nueva búsqueda"**, elegir una keyword del dropdown (o "+ Otra" para escribir una nueva) y un país
 3. Click en **"Buscar y recolectar"** — el dashboard llama al Webhook, espera la respuesta (puede tardar unos segundos por el login + búsqueda en Bluesky) y se refresca solo al terminar
 
-Se recomienda correr recolecciones con cierta frecuencia (por ejemplo, una vez por día por keyword/país) para ir acumulando historial, ya que `searchPosts` devuelve principalmente los posts más recientes y buscar lo mismo muchas veces seguidas no trae datos nuevos. El límite actual es de 100 resultados por corrida (sin paginación — ver sección de pendientes).
+**Paginación**: cada búsqueda pide páginas de 100 resultados a `searchPosts` y avanza con el `cursor` que devuelve la API, hasta que el cursor se agota o se llega al tope de **10 páginas (1.000 resultados por corrida)**. El tope se cambia en el nodo **"HTTP Request" → Options → Pagination → Max Requests**. Entre páginas hay 500 ms de intervalo para no saturar la API, por lo que una búsqueda puede tardar varias decenas de segundos (el formulario del dashboard espera la respuesta).
+
+Se recomienda correr recolecciones con cierta frecuencia para ir acumulando historial: buscar lo mismo muchas veces seguidas trae pocos datos nuevos. Cada corrida sigue teniendo un tope de 1.000 resultados, así que una búsqueda que lo alcance está truncada.
 
 ---
 
@@ -206,6 +208,16 @@ El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en 
 | `keyword_busqueda` | TEXT | Término de búsqueda que trajo este post |
 | `fecha_insercion` | TIMESTAMP | Fecha en que se guardó en la base (default `NOW()`) |
 | `pais` | TEXT | País asociado a la búsqueda que trajo este post (ej. `argentina`, `mexico`) |
+| `posible_falso_positivo_geografico` | BOOLEAN | `true` si el texto contiene una frase que indica otro lugar con el mismo nombre que el país buscado (hoy: «New Mexico» cuando `pais = 'mexico'`). Solo marca, no descarta el post |
+| `pagina_recoleccion` | INTEGER | Número de página de resultados (1 = la primera que devuelve la API) en la que apareció el post **en la última corrida que lo trajo**. Sirve para medir el sesgo de recencia; ver la nota de abajo |
+
+### Notas de calidad de los datos
+
+- **Sesgo de recencia.** `searchPosts` devuelve primero lo más reciente. Las corridas hechas antes de agregar la paginación (24/09/2026) tienen solo la primera página de cada búsqueda, así que buena parte del histórico está sesgada hacia el presente y **no se puede interpretar un aumento de volumen reciente como un aumento real del discurso** sin controlar esto. En una prueba de 3 páginas para `ciberseguridad` + México, la página 1 cubrió de mar a sep 2026, la 2 de nov 2025 a mar 2026 y la 3 de jun a oct 2025.
+- **`pagina_recoleccion` se pisa.** Como el guardado es un upsert por `post_uri`, si un post reaparece en otra corrida queda con la página de la **última** corrida, no de la primera. El análisis del sesgo solo es válido sobre posts cuya última corrida sea posterior a la paginación; los anteriores tienen `NULL`.
+- **`keyword_busqueda` también se pisa**, por el mismo motivo: guarda la última búsqueda que encontró el post, por lo que los desgloses por keyword subestiman.
+- **Colisión México / Nuevo México.** En un corte de 600 posts con `pais = 'mexico'`, 21 (3,5 %) mencionan «New Mexico» (EE. UU.). Están marcados con `posible_falso_positivo_geografico`. El flag se probó con datos simulados y aplicado retroactivamente sobre la base, pero **todavía no se ejercitó de punta a punta con un caso real dentro de n8n**. No detecta variantes como `new-mexico` (con guion). Las consultas del dashboard aún no excluyen ni muestran estos posts.
+- **Bugs corregidos en los workflows de recolección** (los datos recolectados antes de la corrección están submuestreados): el nodo de limpieza corría en modo «All Items» y procesaba solo el primer resultado de cada búsqueda (1 post de ~50-100), y la extracción de `fuente_dominio` usaba `new URL()`, que falla en el sandbox del nodo Code y dejaba el campo en `null` en todos los posts.
 
 ---
 
@@ -220,6 +232,8 @@ El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en 
 - **Workflow 3 separado del Workflow 1** en vez de agregarle un trigger extra al mismo workflow: mantiene la separación entre "recolección batch manual" y "recolección bajo demanda vía HTTP" como dos responsabilidades distintas, cada una con su propio modo de disparo y su propio log de ejecuciones en n8n.
 - **Agregación de métricas recalculada en el cliente** (dashboard) al aplicar filtros, en vez de pedirle al webhook datos ya filtrados: mantiene el Workflow 2 simple (siempre devuelve el historial completo) y evita tener que ir y volver al backend por cada combinación de filtro — el filtrado es una capa de presentación pura.
 - **Credential Custom Auth para el login de Bluesky** en vez de hardcodear usuario/password en el body del nodo HTTP Request: ver la advertencia de seguridad en la sección 3.4.
+- **Paginación nativa del nodo HTTP Request** en vez de un loop armado a mano con IF / Loop Over Items: n8n ya trae la lógica de pasar un parámetro (el `cursor`) de una respuesta a la siguiente, con tope de páginas e intervalo entre requests. Menos nodos y menos lugares donde equivocarse. Un nodo Code intermedio («Etiquetar página») numera cada página dentro de los posts antes del Split Out.
+- **Marcar en vez de descartar** los posibles falsos positivos geográficos: el dato queda en la base con su flag y la decisión de excluirlo (o no) se toma en el análisis, no en el pipeline. La lista de colisiones conocidas es un objeto editable dentro del nodo de limpieza.
 - **Mapa recortado a LATAM** en vez de mostrar el continente americano completo: coherencia con el alcance temático del proyecto (un mapa con EE.UU./Canadá visibles en un observatorio que se llama "LATAM" generaba una inconsistencia de encuadre).
 
 ---
@@ -241,7 +255,11 @@ El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en 
 ## 9. Pendientes / próximos pasos
 
 - [ ] **Reexportar `Workflow 1 V2` y `Workflow 2 V2`** desde n8n después de cualquier cambio manual (actualmente el repo puede quedar desincronizado de lo que corre en la instancia real — pasó con el fix de Custom Auth y con el agregado de `pais`/`fecha_insercion` a la query del Workflow 2).
-- [ ] Paginación con `cursor` en `searchPosts` (tope actual: 100 resultados por corrida).
+- [ ] **Recolectar de nuevo con paginación** las 9 keywords × 5 países: los datos actuales son en su mayoría de una sola página por búsqueda.
+- [ ] Sumar `posible_falso_positivo_geografico` y `pagina_recoleccion` a la query del Workflow 2 y usarlos en el dashboard (excluir o resaltar los posibles falsos positivos, mostrar la distribución por página).
+- [ ] **Mover la agregación al servidor** (Workflow 2): hoy devuelve todos los posts en un solo JSON, y con paginación puede crecer a decenas de miles de posts, lo que vuelve lento al dashboard.
+- [ ] Ejercitar el flag de «New Mexico» con un caso real en n8n y evaluar otras colisiones (ej. «Georgia», «Columbia»).
+- [ ] Repetir la recolección de Brasil con keywords en portugués (las keywords en español favorecen los términos que se usan igual en inglés).
 - [ ] Detectar links compartidos como texto plano vía `record.facets`, no solo como tarjeta embebida (`embed.external.uri`) — hoy se pierden fuentes externas que no generan preview card.
 - [ ] Automatizar la recolección con Schedule Trigger (cuando haya un entorno con disponibilidad continua).
 - [ ] Validación manual de una muestra de posts (relevancia temática).
