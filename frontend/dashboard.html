@@ -871,7 +871,9 @@
       </div>
       <div class="new-search-field">
         <label for="newSearchPais">País</label>
-        <input type="text" id="newSearchPais" placeholder="ej. mexico" required>
+        <select id="newSearchPais" required>
+          <option value="">Elegí un país…</option>
+        </select>
       </div>
       <div class="new-search-field">
         <label for="newSearchEndpoint">Endpoint del webhook</label>
@@ -1164,13 +1166,40 @@ function updateMap(allPosts) {
   });
 }
 
+const PAISES_LATAM = [
+  'Colombia', 'Venezuela', 'Guyana', 'Surinam', 'Brasil', 'Ecuador', 'Perú',
+  'Bolivia', 'Paraguay', 'Chile', 'Argentina', 'Uruguay', 'Cuba', 'Guatemala',
+  'Belice', 'Honduras', 'El Salvador', 'Nicaragua', 'Costa Rica', 'Panamá'
+];
+
+// Quita el nombre de país (si quedó pegado en keywords históricas, ej. "ciberseguridad argentina")
+// para que el desplegable de keyword muestre solo el tema de búsqueda, sin el país.
+function stripPaisDeKeyword(keyword) {
+  let limpio = keyword.trim();
+  for (const pais of PAISES_LATAM) {
+    const regex = new RegExp(`\\s+${pais}\\s*$`, 'i');
+    limpio = limpio.replace(regex, '');
+  }
+  return limpio.trim();
+}
+
 function populateNewSearchKeywords(allPosts) {
   const select = $('#newSearchKeyword');
   const current = select.value;
-  const keywords = [...new Set(allPosts.map(p => p.keyword_busqueda).filter(Boolean))].sort();
+  const keywords = [...new Set(
+    allPosts.map(p => p.keyword_busqueda).filter(Boolean).map(stripPaisDeKeyword).filter(Boolean)
+  )].sort();
   select.innerHTML = '<option value="">Elegí una keyword…</option>' +
     keywords.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('') +
     '<option value="__custom__">+ Otra (especificar)</option>';
+  if ([...select.options].some(o => o.value === current)) select.value = current;
+}
+
+function populateNewSearchPaises() {
+  const select = $('#newSearchPais');
+  const current = select.value;
+  select.innerHTML = '<option value="">Elegí un país…</option>' +
+    PAISES_LATAM.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
   if ([...select.options].some(o => o.value === current)) select.value = current;
 }
 
@@ -1206,6 +1235,7 @@ function render(data) {
   const allPosts = data.posts || [];
   populateFilterOptions(allPosts);
   populateNewSearchKeywords(allPosts);
+  populateNewSearchPaises();
   updateMap(allPosts);
   updateFiltersNote();
 
