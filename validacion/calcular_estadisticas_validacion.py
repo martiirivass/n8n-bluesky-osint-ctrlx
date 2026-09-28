@@ -83,7 +83,7 @@ def limpiar(v):
 
 
 def main(path):
-    with open(path, encoding="utf-8", newline="") as f:
+    with open(path, encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
     if not rows:
         print("El CSV no tiene filas.")

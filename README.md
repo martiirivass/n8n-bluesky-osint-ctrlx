@@ -2,6 +2,10 @@
 
 Sistema de recolección y análisis de publicaciones públicas sobre ciberseguridad en América Latina, usando Bluesky (AT Protocol) como fuente de datos. El pipeline recolecta posts (manualmente o bajo demanda desde el dashboard), los limpia, calcula métricas de engagement y país, y los persiste en PostgreSQL; un dashboard web interactivo consume esos datos a través de un Webhook de n8n, con filtros por país/keyword y un mapa clickeable de la región.
 
+## Validación manual
+
+- [Validación manual de relevancia temática](validacion/README.md)
+
 ## Arquitectura
 
 ```
