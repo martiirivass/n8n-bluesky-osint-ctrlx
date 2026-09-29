@@ -115,7 +115,11 @@ def main(path):
                     if limpiar(r.get("clasificacion")) in CLASES and i not in malas]
     utiles = [r for r in clasificadas if limpiar(r["clasificacion"]) != "no_clasificable"]
     no_clasif = len(clasificadas) - len(utiles)
-    vacios = sum(1 for r in rows if not (r.get("texto") or "").strip())
+    # La versión pública no trae el texto, solo la columna tiene_texto (ver seudonimizar_validacion.py).
+    if "tiene_texto" in rows[0]:
+        vacios = sum(1 for r in rows if limpiar(r["tiene_texto"]) == "no")
+    else:
+        vacios = sum(1 for r in rows if not (r.get("texto") or "").strip())
     print(f"Clasificadas: {len(clasificadas)} | marcadas no_clasificable: {no_clasif} "
           f"(filas sin texto en la muestra: {vacios}) | base de cálculo (n): {len(utiles)}")
     if not utiles:
@@ -197,5 +201,5 @@ def main(path):
 if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    ruta = sys.argv[1] if len(sys.argv) > 1 else str(Path(__file__).resolve().parent / "validacion_muestra_80.csv")
+    ruta = sys.argv[1] if len(sys.argv) > 1 else str(Path(__file__).resolve().parent / "validacion_muestra_80_seudonimizada.csv")
     sys.exit(main(ruta))

@@ -112,7 +112,7 @@
   .status-dot.ok { background: #7FB88A; box-shadow: 0 0 6px #7FB88A55; }
   .status-dot.err { background: var(--danger); box-shadow: 0 0 6px #C0654F55; }
 
-  input#endpoint {
+  input#endpoint, input#apiKey {
     background: var(--panel);
     border: 1px solid var(--line);
     color: var(--text-dim);
@@ -122,7 +122,7 @@
     border-radius: 3px;
     width: 240px;
   }
-  input#endpoint:focus { outline: none; border-color: var(--sky); color: var(--text); box-shadow: 0 0 0 2px var(--sky-dim); }
+  input#endpoint:focus, input#apiKey:focus { outline: none; border-color: var(--sky); color: var(--text); box-shadow: 0 0 0 2px var(--sky-dim); }
 
   button#refreshBtn {
     background: transparent;
@@ -794,7 +794,7 @@
       --sky-dim: #a9c4d6;
     }
     body { background: #fff; }
-    #connectionLine, input#endpoint, .refresh-row, .post-controls { display: none !important; }
+    #connectionLine, input#endpoint, input#apiKey, .refresh-row, .post-controls { display: none !important; }
     .new-search-panel, .filters-bar, .more-bar button, .fuentes-toggle { display: none !important; }
     .kpi-strip, .panel, .callout, .post-card {
       break-inside: avoid;
@@ -820,6 +820,8 @@
         <div class="status-line" id="lastCollectedLine" style="display:none;">última recolección: <span id="lastCollectedText">—</span></div>
         <label for="endpoint" class="sr-only">URL del webhook de n8n</label>
         <input type="text" id="endpoint" value="http://localhost:5678/webhook/dashboard-data">
+        <label for="apiKey" class="sr-only">Clave de acceso a los webhooks (header X-API-Key)</label>
+        <input type="password" id="apiKey" placeholder="clave de acceso (X-API-Key)" autocomplete="off">
         <div class="refresh-row">
           <button id="refreshBtn">Actualizar datos</button>
           <label class="auto-refresh-toggle">
@@ -845,7 +847,7 @@
         <li><b>Tope por búsqueda:</b> la API <code>searchPosts</code> entrega 100 resultados por página y el pipeline pagina hasta 10 páginas (1.000 resultados). Si una búsqueda llega al tope, la muestra está truncada: las comparaciones entre países son entre muestras, no entre totales.</li>
         <li><b>Sesgo de recencia:</b> la API devuelve primero lo más reciente y la paginación lo reduce pero no lo elimina: los posts de las primeras páginas son mucho más recientes que los de las últimas. Cada post guarda su <code>pagina_recoleccion</code> (la de la última corrida que lo trajo) para poder medirlo.</li>
         <li><b>México / Nuevo México:</b> entre el 3 % y el 6 % de los posts con país «mexico» mencionan «New Mexico» (EE. UU.). Están marcados en la base (<code>posible_falso_positivo_geografico</code>), pero este dashboard todavía los cuenta.</li>
-        <li><b>Keyword:</b> cada post guarda solo la última búsqueda que lo encontró. Si aparece por varias keywords queda con una sola, así que los desgloses por keyword subestiman.</li>
+        <li><b>Keyword y país:</b> un post puede aparecer en varias búsquedas (ej. «ransomware mexico» y «malware chile»). Los filtros y conteos usan todas sus pertenencias, así que la suma por país o por keyword puede superar el total. Los datos recolectados antes de este cambio conservan una sola atribución (la última búsqueda que los trajo).</li>
         <li><b>Idioma:</b> las keywords están en español. En Brasil favorecen los términos que se usan igual en inglés (<em>ransomware</em>, <em>malware</em>, <em>hacking</em>).</li>
         <li><b>Alcance:</b> solo publicaciones públicas de Bluesky. No representa a la población general de cada país.</li>
       </ul>
@@ -1007,8 +1009,8 @@ function median(nums) {
 function computeCountryStats(posts) {
   const groups = {};
   posts.forEach(p => {
-    const k = p.pais || 'sin_especificar';
-    (groups[k] = groups[k] || []).push(p);
+    const paises = paisesDe(p);
+    (paises.length ? paises : ['sin_especificar']).forEach(k => (groups[k] = groups[k] || []).push(p));
   });
   return Object.entries(groups).map(([pais, ps]) => {
     const scores = ps.map(p => parseFloat(p.engagement_score || 0));
@@ -1036,6 +1038,15 @@ function groupTimelineByMonth(tl) {
 function normalize(s) {
   if (!s) return '';
   return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
+
+// Pertenencias de un post (modelo N:M: todas las búsquedas keyword × país que lo trajeron).
+// Si el webhook no trae los arrays (versión anterior del Workflow 2), se usa la atribución única.
+function paisesDe(p) {
+  return Array.isArray(p.paises) && p.paises.length ? p.paises : (p.pais ? [p.pais] : []);
+}
+function keywordsDe(p) {
+  return Array.isArray(p.keywords) && p.keywords.length ? p.keywords : (p.keyword_busqueda ? [p.keyword_busqueda] : []);
 }
 
 function esc(str) {
@@ -1082,8 +1093,8 @@ function getFilteredSortedPosts(allPosts) {
 
 function applyPaisKeywordFilter(posts) {
   return posts.filter(p => {
-    if (filterState.pais && normalize(p.pais) !== normalize(filterState.pais)) return false;
-    if (filterState.keyword && p.keyword_busqueda !== filterState.keyword) return false;
+    if (filterState.pais && !paisesDe(p).some(x => normalize(x) === normalize(filterState.pais))) return false;
+    if (filterState.keyword && !keywordsDe(p).includes(filterState.keyword)) return false;
     return true;
   });
 }
@@ -1123,8 +1134,8 @@ function computeAggregates(posts) {
 
   const paisCount = {};
   for (const p of posts) {
-    const pais = p.pais || 'sin_especificar';
-    paisCount[pais] = (paisCount[pais] || 0) + 1;
+    const paises = paisesDe(p);
+    for (const pais of (paises.length ? paises : ['sin_especificar'])) paisCount[pais] = (paisCount[pais] || 0) + 1;
   }
   const posts_por_pais = Object.entries(paisCount).map(([pais, total]) => ({ pais, total }));
 
@@ -1147,8 +1158,8 @@ function computeAggregates(posts) {
 function populateFilterOptions(allPosts) {
   const paisSelect = $('#filterPais');
   const keywordSelect = $('#filterKeyword');
-  const paises = [...new Set(allPosts.map(p => p.pais).filter(Boolean))].sort();
-  const keywords = [...new Set(allPosts.map(p => p.keyword_busqueda).filter(Boolean))].sort();
+  const paises = [...new Set(allPosts.flatMap(paisesDe).filter(Boolean))].sort();
+  const keywords = [...new Set(allPosts.flatMap(keywordsDe).filter(Boolean))].sort();
 
   paisSelect.innerHTML = '<option value="">Todos los países</option>' +
     paises.map(p => `<option value="${esc(p)}"${normalize(p) === normalize(filterState.pais) ? ' selected' : ''}>${esc(p)}</option>`).join('');
@@ -1157,7 +1168,7 @@ function populateFilterOptions(allPosts) {
 }
 
 function updateMap(allPosts) {
-  const paisesConDatos = new Set(allPosts.map(p => normalize(p.pais)).filter(Boolean));
+  const paisesConDatos = new Set(allPosts.flatMap(paisesDe).map(normalize).filter(Boolean));
   const selectedNorm = normalize(filterState.pais);
   $$('.country').forEach(el => {
     const paisNorm = el.getAttribute('data-pais');
@@ -1166,19 +1177,19 @@ function updateMap(allPosts) {
   });
 }
 
-const PAISES_LATAM = [
-  'Colombia', 'Venezuela', 'Guyana', 'Surinam', 'Brasil', 'Ecuador', 'Perú',
-  'Bolivia', 'Paraguay', 'Chile', 'Argentina', 'Uruguay', 'Cuba', 'Guatemala',
-  'Belice', 'Honduras', 'El Salvador', 'Nicaragua', 'Costa Rica', 'Panamá'
-];
+// Lista cerrada de países: los mismos slugs del mapa y de la tabla `paises` de la base.
+// Se envía el slug (minúsculas, sin tildes), no la etiqueta: así "México" y "mexico" no quedan
+// como países distintos. El Workflow 3 igual normaliza y rechaza lo que no esté en la lista.
+const PAISES_LATAM = $$('.country[data-pais]')
+  .map(el => ({ slug: el.getAttribute('data-pais'), label: el.getAttribute('data-label') }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'es'));
 
 // Quita el nombre de país (si quedó pegado en keywords históricas, ej. "ciberseguridad argentina")
 // para que el desplegable de keyword muestre solo el tema de búsqueda, sin el país.
 function stripPaisDeKeyword(keyword) {
   let limpio = keyword.trim();
-  for (const pais of PAISES_LATAM) {
-    const regex = new RegExp(`\\s+${pais}\\s*$`, 'i');
-    limpio = limpio.replace(regex, '');
+  for (const { slug } of PAISES_LATAM) {
+    if (normalize(limpio).endsWith(' ' + slug)) limpio = limpio.slice(0, limpio.length - slug.length - 1);
   }
   return limpio.trim();
 }
@@ -1187,7 +1198,7 @@ function populateNewSearchKeywords(allPosts) {
   const select = $('#newSearchKeyword');
   const current = select.value;
   const keywords = [...new Set(
-    allPosts.map(p => p.keyword_busqueda).filter(Boolean).map(stripPaisDeKeyword).filter(Boolean)
+    allPosts.flatMap(keywordsDe).filter(Boolean).map(stripPaisDeKeyword).filter(Boolean)
   )].sort();
   select.innerHTML = '<option value="">Elegí una keyword…</option>' +
     keywords.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('') +
@@ -1199,7 +1210,7 @@ function populateNewSearchPaises() {
   const select = $('#newSearchPais');
   const current = select.value;
   select.innerHTML = '<option value="">Elegí un país…</option>' +
-    PAISES_LATAM.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+    PAISES_LATAM.map(p => `<option value="${esc(p.slug)}">${esc(p.label)}</option>`).join('');
   if ([...select.options].some(o => o.value === current)) select.value = current;
 }
 
@@ -1213,9 +1224,9 @@ function updateFiltersNote() {
 function exportPostsCsv() {
   if (!lastData) return;
   const posts = getFilteredSortedPosts(applyPaisKeywordFilter(lastData.posts || []));
-  const headers = ['fecha_creacion', 'autor_handle', 'autor_display_name', 'texto', 'likes', 'reposts', 'replies', 'quotes', 'engagement_score', 'fuente_dominio', 'es_bridged', 'keyword_busqueda', 'post_uri'];
+  const headers = ['fecha_creacion', 'autor_handle', 'autor_display_name', 'texto', 'likes', 'reposts', 'replies', 'quotes', 'engagement_score', 'fuente_dominio', 'es_bridged', 'keyword_busqueda', 'pais', 'keywords', 'paises', 'post_uri'];
   const csvEscape = (val) => {
-    const s = (val === null || val === undefined) ? '' : String(val);
+    const s = (val === null || val === undefined) ? '' : Array.isArray(val) ? val.join(' | ') : String(val);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
   const rows = [headers.join(',')];
@@ -1456,6 +1467,19 @@ function render(data) {
   app.innerHTML = html;
 }
 
+// Los webhooks piden la clave en el header X-API-Key (credential "Header Auth" de n8n).
+// Se recuerda solo durante la sesión del navegador; nunca se escribe en el código.
+const API_KEY_STORAGE = 'osint_api_key';
+try { $('#apiKey').value = sessionStorage.getItem(API_KEY_STORAGE) || ''; } catch (e) { /* storage bloqueado */ }
+$('#apiKey').addEventListener('change', (e) => {
+  try { sessionStorage.setItem(API_KEY_STORAGE, e.target.value); } catch (err) { /* storage bloqueado */ }
+  loadData();
+});
+function authHeaders() {
+  const key = $('#apiKey').value.trim();
+  return key ? { 'X-API-Key': key } : {};
+}
+
 async function loadData() {
   const url = $('#endpoint').value.trim();
   statusText.textContent = 'conectando…';
@@ -1463,7 +1487,8 @@ async function loadData() {
   app.innerHTML = `<div class="state-box">Consultando ${esc(url)}…</div>`;
 
   try {
-    const res = await fetch(url, { method: 'GET' });
+    const res = await fetch(url, { method: 'GET', headers: authHeaders() });
+    if (res.status === 401 || res.status === 403) throw new Error(`HTTP ${res.status}: falta la clave de acceso o no es válida`);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     lastData = data;
@@ -1588,7 +1613,7 @@ $('#newSearchForm').addEventListener('submit', async (e) => {
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ keyword, pais })
     });
     const body = await res.json();

@@ -35,7 +35,7 @@ N = 80                # tamaño de muestra (2,05% del universo de 3.908)
 
 RAIZ = Path(__file__).resolve().parent.parent
 INPUT_PATH = RAIZ / "database" / "export_posts_latam.json"
-OUTPUT_PATH = Path(__file__).resolve().parent / "validacion_muestra_80.csv"
+OUTPUT_PATH = Path(__file__).resolve().parent / "privado" / "validacion_muestra_80.csv"  # no se versiona
 
 
 def main():
@@ -59,6 +59,7 @@ def main():
         # Evaluador B (clasifica solo un subconjunto en común, para el kappa)
         "clasificacion_b", "pais_correcto_b", "evaluador_b",
     ]
+    OUTPUT_PATH.parent.mkdir(exist_ok=True)
     with open(OUTPUT_PATH, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()

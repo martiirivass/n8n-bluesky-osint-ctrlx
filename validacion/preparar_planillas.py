@@ -29,7 +29,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
 DIR = Path(__file__).resolve().parent
-CSV_BASE = DIR / "validacion_muestra_80.csv"
+CSV_BASE = DIR / "privado" / "validacion_muestra_80.csv"  # contiene textos y URIs: no se versiona
 
 CLASES = "relevante,parcial,no_relevante,no_clasificable"
 GEO = "si,no,no_se"

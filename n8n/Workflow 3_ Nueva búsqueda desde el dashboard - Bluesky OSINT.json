@@ -6,12 +6,15 @@
         "httpMethod": "POST",
         "path": "nueva-busqueda",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "http://localhost:8080,http://127.0.0.1:8080"
+        },
+        "authentication": "headerAuth"
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -672,
+        -1480,
         112
       ],
       "id": "568a3f15-007e-4e3d-a20c-010025b2a95e",
@@ -41,7 +44,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -448,
+        -1260,
         112
       ],
       "id": "b6ae7ffb-c7dc-4130-90fb-9fb9531420b8",
@@ -53,26 +56,16 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
-              "id": "a1b2c3d4-0005-4a11-9001-000000000005",
-              "leftValue": "={{ $json.keyword }}",
+              "id": "0b59c647-c20e-4d3d-a571-9a6e5cb59d3f",
+              "leftValue": "={{ $json.error }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "a1b2c3d4-0006-4a11-9001-000000000006",
-              "leftValue": "={{ $json.pais }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty",
+                "operation": "empty",
                 "singleValue": true
               }
             }
@@ -84,7 +77,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -224,
+        -820,
         112
       ],
       "id": "d0af1d63-0846-4827-9d8f-6a6976a722d8",
@@ -93,14 +86,18 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"ok\": false, \"error\": \"Faltan los campos 'keyword' y/o 'pais' en el body de la request.\" } }}",
+        "responseBody": "={{ { \"ok\": false, \"error\": $json.error } }}",
         "options": {
           "responseCode": 400,
           "responseHeaders": {
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "={{ [\"http://localhost:8080\", \"http://127.0.0.1:8080\"].includes($('Webhook - Nueva búsqueda').first().json.headers.origin) ? $('Webhook - Nueva búsqueda').first().json.headers.origin : 'http://localhost:8080' }}"
+              },
+              {
+                "name": "Vary",
+                "value": "Origin"
               }
             ]
           }
@@ -109,8 +106,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        0,
-        288
+        -600,
+        400
       ],
       "id": "9bbfc6ee-a24d-4550-a9ff-90599300e85f",
       "name": "Respond error"
@@ -129,8 +126,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        0,
-        0
+        720,
+        412
       ],
       "id": "bca5a86d-7953-4089-83ed-59120b2c8a1a",
       "name": "Nodo: LoginBluesky",
@@ -139,7 +136,10 @@
           "id": "9iGnVBMcvvKEOyRH",
           "name": "Custom Auth account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -149,11 +149,11 @@
           "parameters": [
             {
               "name": "q",
-              "value": "={{ $('Keyword').item.json.keyword }} {{ $('Keyword').item.json.pais }}"
+              "value": "={{ $('Normalizar búsqueda').first().json.q }}"
             },
             {
               "name": "limit",
-              "value": "100"
+              "value": "={{ $('Normalizar búsqueda').first().json.limit_por_pagina }}"
             }
           ]
         },
@@ -191,11 +191,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        224,
-        0
+        1160,
+        112
       ],
       "id": "f9b6087f-6efd-4afe-bc6d-0e125ab168e4",
-      "name": "HTTP Request"
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -205,8 +208,8 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        448,
-        0
+        2260,
+        112
       ],
       "id": "4006685c-f6bc-4237-870e-122b1becfcdf",
       "name": "Separar posts individuales"
@@ -214,13 +217,13 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const post = $input.item.json;\n\n// Colisiones geográficas conocidas. Para cada país buscado, frases que indican que el\n// post habla de otro lugar con el mismo nombre. Solo se MARCA, nunca se descarta.\n// Para sumar otro caso, agregar una entrada (ej.: colombia: [/\\bcolumbia\\b/i]).\nconst COLISIONES_GEOGRAFICAS = {\n  mexico: [/\\bnew\\s+mexico\\b/i]\n};\n\nfunction normalizarPais(pais) {\n  return String(pais || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim();\n}\n\nfunction esPosibleFalsoPositivoGeografico(pais, texto) {\n  const patrones = COLISIONES_GEOGRAFICAS[normalizarPais(pais)] || [];\n  return patrones.some(re => re.test(texto || ''));\n}\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  const m = String(externalUri).match(/^https?:\\/\\/([^\\/?#:]+)/i);\n  fuenteDominio = m ? m[1].toLowerCase().replace(/^www\\./, '') : null;\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nconst busqueda = $('Keyword').first().json;\nconst texto = post.record?.text || '';\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: texto,\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: busqueda.keyword,\n    pais: busqueda.pais,\n    posible_falso_positivo_geografico: esPosibleFalsoPositivoGeografico(busqueda.pais, texto),\n    pagina_recoleccion: post.pagina_recoleccion ?? null\n  }\n};"
+        "jsCode": "const post = $input.item.json;\n\n// Colisiones geográficas conocidas. Para cada país buscado, frases que indican que el\n// post habla de otro lugar con el mismo nombre. Solo se MARCA, nunca se descarta.\n// Para sumar otro caso, agregar una entrada (ej.: colombia: [/\\bcolumbia\\b/i]).\nconst COLISIONES_GEOGRAFICAS = {\n  mexico: [/\\bnew\\s+mexico\\b/i]\n};\n\nfunction normalizarPais(pais) {\n  return String(pais || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim();\n}\n\nfunction esPosibleFalsoPositivoGeografico(pais, texto) {\n  const patrones = COLISIONES_GEOGRAFICAS[normalizarPais(pais)] || [];\n  return patrones.some(re => re.test(texto || ''));\n}\n\n// Detección de bridging (cuenta puenteada desde otra plataforma, no nativa de Bluesky)\nconst handle = post.author?.handle || '';\nconst esBridged = handle.includes('.brid.gy') || handle.includes('.web.brid.gy');\n\n// Extracción de dominio de fuente externa (si el post comparte un link)\nlet fuenteDominio = null;\nconst externalUri = post.record?.embed?.external?.uri || post.embed?.external?.uri;\nif (externalUri) {\n  const m = String(externalUri).match(/^https?:\\/\\/([^\\/?#:]+)/i);\n  fuenteDominio = m ? m[1].toLowerCase().replace(/^www\\./, '') : null;\n}\n\n// Métricas de engagement\nconst likes = post.likeCount || 0;\nconst reposts = post.repostCount || 0;\nconst replies = post.replyCount || 0;\nconst quotes = post.quoteCount || 0;\n\nconst engagementScore = likes + (reposts * 2) + (replies * 1.5) + (quotes * 2);\n\nconst busqueda = $('Normalizar búsqueda').first().json; // keyword y país ya normalizados\nconst texto = post.record?.text || '';\n\nreturn {\n  json: {\n    id: post.uri,\n    cid: post.cid,\n    texto: texto,\n    autor_handle: handle,\n    autor_display_name: post.author?.displayName || '',\n    fecha_creacion: post.record?.createdAt || null,\n    fecha_indexado: post.indexedAt || null,\n    likes: likes,\n    reposts: reposts,\n    replies: replies,\n    quotes: quotes,\n    engagement_score: Math.round(engagementScore * 100) / 100,\n    fuente_dominio: fuenteDominio,\n    es_bridged: esBridged,\n    keyword_busqueda: busqueda.keyword,\n    pais: busqueda.pais,\n    posible_falso_positivo_geografico: esPosibleFalsoPositivoGeografico(busqueda.pais, texto),\n    pagina_recoleccion: post.pagina_recoleccion ?? null\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
-        0
+        2480,
+        112
       ],
       "id": "ff4b5a83-7da5-4f9b-8d72-a2bafc744f90",
       "name": "Limpieza y recopilación de datos"
@@ -460,8 +463,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        896,
-        0
+        2700,
+        112
       ],
       "id": "be26b213-bcf1-4303-9fd5-7df655b951ed",
       "name": "Insertar/actualizar posts",
@@ -474,16 +477,17 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{\n  json: {\n    ok: true,\n    keyword: $('Keyword').item.json.keyword,\n    pais: $('Keyword').item.json.pais,\n    posts_procesados: items.length\n  }\n}];"
+        "jsCode": "const busqueda = $('Normalizar búsqueda').first().json;\nconst resumen = $('Resumen de corrida').first().json;\nreturn [{\n  json: {\n    ok: true,\n    keyword: busqueda.keyword,\n    pais: busqueda.pais,\n    ejecucion_id: resumen.ejecucion_id,\n    paginas_obtenidas: resumen.paginas_obtenidas,\n    cursor_agotado: resumen.cursor_agotado,\n    posts_procesados: $('Limpieza y recopilación de datos').all().length\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        1340,
         0
       ],
       "id": "3d7e95f3-bbc0-4694-a675-8e90fd831d07",
-      "name": "Contar resultados"
+      "name": "Contar resultados",
+      "executeOnce": true
     },
     {
       "parameters": {
@@ -494,7 +498,11 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "={{ [\"http://localhost:8080\", \"http://127.0.0.1:8080\"].includes($('Webhook - Nueva búsqueda').first().json.headers.origin) ? $('Webhook - Nueva búsqueda').first().json.headers.origin : 'http://localhost:8080' }}"
+              },
+              {
+                "name": "Vary",
+                "value": "Origin"
               }
             ]
           }
@@ -503,7 +511,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1344,
+        1564,
         0
       ],
       "id": "656606f7-af30-47d5-9601-60a23906f5d0",
@@ -516,11 +524,283 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        336,
-        120
+        1380,
+        112
       ],
       "id": "dfebf3bb-db8e-47d1-8c18-00bd82a4a08a",
       "name": "Etiquetar página"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza keyword y país ANTES de buscar y de guardar. Sin esto, \"México\", \"mexico\" y \"Mexico\"\n// quedaban como tres países distintos en la base. El país tiene que estar en la lista cerrada\n// (la misma que la tabla `paises`, ver database/schema.sql); si no está, la corrida se rechaza.\nconst PAISES = [\n  'argentina', 'bahamas', 'belice', 'bolivia', 'brasil', 'chile',\n  'colombia', 'costa rica', 'cuba', 'dominica', 'ecuador', 'el salvador',\n  'guatemala', 'guyana', 'haiti', 'honduras', 'jamaica', 'mexico',\n  'nicaragua', 'panama', 'paraguay', 'peru', 'puerto rico', 'republica dominicana',\n  'san vicente y las granadinas', 'santa lucia', 'surinam', 'trinidad y tobago', 'uruguay', 'venezuela'\n];\nconst ALIAS = {\n  brazil: 'brasil', belize: 'belice', suriname: 'surinam', 'dominican republic': 'republica dominicana',\n  'saint lucia': 'santa lucia', 'trinidad and tobago': 'trinidad y tobago'\n};\n\n// Parámetros de searchPosts. Se registran tal cual en ejecuciones_recoleccion.\n// OJO: MAX_PAGINAS e INTERVALO_MS tienen que coincidir con \"HTTP Request\" → Options → Pagination.\nconst LIMIT_POR_PAGINA = 100;\nconst MAX_PAGINAS = 10;\nconst INTERVALO_MS = 500;\n\nfunction normalizar(s) {\n  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ').trim();\n}\n\nconst entrada = $input.first().json;\nconst keyword = String(entrada.keyword ?? '').replace(/\\s+/g, ' ').trim();\nconst paisNormalizado = normalizar(entrada.pais);\nconst pais = ALIAS[paisNormalizado] || paisNormalizado;\n\nlet error = null;\nif (!keyword || !pais) error = \"Faltan los campos 'keyword' y/o 'pais'.\";\nelse if (keyword.length > 100) error = \"La keyword no puede superar los 100 caracteres.\";\nelse if (!PAISES.includes(pais)) error = `País no válido: \"${entrada.pais}\". Valores aceptados: ${PAISES.join(', ')}.`;\n\n// Si hay error, el nodo \"Validar keyword y pais\" corta acá y responde 400.\nreturn [{\n  json: {\n    keyword,\n    pais,\n    q: `${keyword} ${pais}`,   // valor EXACTO que se manda en q= (el país va normalizado: \"mexico\", \"brasil\")\n    limit_por_pagina: LIMIT_POR_PAGINA,\n    max_paginas: MAX_PAGINAS,\n    intervalo_ms: INTERVALO_MS,\n    error\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        112
+      ],
+      "id": "f713a46a-5c1c-4c75-b25c-ce8f600a3673",
+      "name": "Normalizar búsqueda"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Una fila por corrida: deja registrada la consulta exacta y los parámetros enviados a searchPosts.\n-- sort y lang no se envían (NULL): la API usa su default (sort=latest, sin filtro de idioma).\nINSERT INTO ejecuciones_recoleccion\n  (workflow, n8n_execution_id, keyword_busqueda, pais, consulta_q,\n   limit_por_pagina, max_paginas, intervalo_ms, sort, lang)\nVALUES ('W3-webhook', $1, $2, $3, $4, $5, $6, $7, NULL, NULL)\nRETURNING id, inicio;",
+        "options": {
+          "queryReplacement": "={{ $execution.id }}, {{ $json.keyword }}, {{ $json.pais }}, {{ $json.q }}, {{ $json.limit_por_pagina }}, {{ $json.max_paginas }}, {{ $json.intervalo_ms }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -600,
+        112
+      ],
+      "id": "649cbd22-6e78-4c89-bee9-359b9333e7b3",
+      "name": "Registrar inicio de ejecución",
+      "credentials": {
+        "postgres": {
+          "id": "ISsMdjz9UsSpzhEG",
+          "name": "Postgres account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT access_jwt, refresh_jwt FROM bluesky_sesion WHERE id = 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -380,
+        112
+      ],
+      "id": "04055094-7e9c-4485-b822-fac38c8a18fb",
+      "name": "Leer sesión Bluesky",
+      "credentials": {
+        "postgres": {
+          "id": "ISsMdjz9UsSpzhEG",
+          "name": "Postgres account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reutiliza la sesión de Bluesky entre corridas en vez de hacer createSession cada vez\n// (createSession tiene límite propio: 30 cada 5 min y 300 por día por cuenta).\n//   usar      -> el accessJwt guardado sigue vigente\n//   refrescar -> se renueva con refreshSession (no consume cupo de createSession)\n//   login     -> no hay sesión usable: createSession\n// Los vencimientos se leen del claim `exp` de cada JWT, no se asumen. Si no se puede\n// decodificar, se cae a login (el comportamiento anterior), nunca a un token vencido.\nconst MARGEN_MS = 10 * 60 * 1000; // no usar un token al que le quedan menos de 10 minutos\n\nfunction venceEn(jwt) {\n  try {\n    const payload = JSON.parse(Buffer.from(String(jwt).split('.')[1], 'base64url').toString('utf8'));\n    return typeof payload.exp === 'number' ? payload.exp * 1000 : 0;\n  } catch (e) {\n    return 0;\n  }\n}\n\nconst sesion = $input.first().json;\nconst ahora = Date.now();\nlet accion = 'login';\nif (sesion.access_jwt && venceEn(sesion.access_jwt) - ahora > MARGEN_MS) accion = 'usar';\nelse if (sesion.refresh_jwt && venceEn(sesion.refresh_jwt) - ahora > MARGEN_MS) accion = 'refrescar';\n\nreturn [{\n  json: {\n    accion,\n    accessJwt: accion === 'usar' ? sesion.access_jwt : null,\n    refreshJwt: sesion.refresh_jwt || null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        112
+      ],
+      "id": "88f95ed5-3bb3-48ad-b397-d12f903c3025",
+      "name": "Evaluar sesión"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c6d2e5c6-86db-4187-a60b-86ceb7b91fbf",
+              "leftValue": "={{ $json.accion }}",
+              "rightValue": "usar",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        60,
+        112
+      ],
+      "id": "a886b386-163a-4482-82cb-19166522e5fc",
+      "name": "¿Sesión vigente?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "8cafdc43-4edf-4989-bd5f-e3f937c31891",
+              "leftValue": "={{ $json.accion }}",
+              "rightValue": "refrescar",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        280,
+        312
+      ],
+      "id": "e3f1e84b-e30b-40f7-8eee-0b2183b04c6a",
+      "name": "¿Se puede refrescar?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bsky.social/xrpc/com.atproto.server.refreshSession",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.refreshJwt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        500,
+        212
+      ],
+      "id": "8008e781-9c16-4ecf-8035-d914580e9e8f",
+      "name": "Refrescar sesión",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bluesky_sesion (id, did, handle, access_jwt, refresh_jwt, origen, actualizado)\nVALUES (1, $1, $2, $3, $4, $5, now())\nON CONFLICT (id) DO UPDATE SET\n  did = EXCLUDED.did, handle = EXCLUDED.handle,\n  access_jwt = EXCLUDED.access_jwt, refresh_jwt = EXCLUDED.refresh_jwt,\n  origen = EXCLUDED.origen, actualizado = now()\nRETURNING access_jwt AS \"accessJwt\";",
+        "options": {
+          "queryReplacement": "={{ $json.did }}, {{ $json.handle }}, {{ $json.accessJwt }}, {{ $json.refreshJwt }}, {{ $prevNode.name === 'Refrescar sesión' ? 'refreshSession' : 'createSession' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        940,
+        212
+      ],
+      "id": "0da409e0-f30b-41e3-837c-59cad024cae8",
+      "name": "Guardar sesión",
+      "credentials": {
+        "postgres": {
+          "id": "ISsMdjz9UsSpzhEG",
+          "name": "Postgres account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Metadatos de la corrida para ejecuciones_recoleccion. Cada item de \"Etiquetar página\" es una\n// página de respuesta de searchPosts. Si la última página todavía trae cursor, la corrida se\n// cortó por el tope de páginas (cursor_agotado = false) y la muestra de esa búsqueda está truncada.\nconst paginas = $('Etiquetar página').all();\nconst ultima = paginas.length ? paginas[paginas.length - 1].json : {};\nreturn [{\n  json: {\n    ejecucion_id: $('Registrar inicio de ejecución').first().json.id,\n    paginas_obtenidas: paginas.length,\n    posts_devueltos: paginas.reduce((n, p) => n + (p.json.posts || []).length, 0),\n    cursor_agotado: !ultima.cursor\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        112
+      ],
+      "id": "24d63dcd-b3c0-48ab-9edf-86c878208612",
+      "name": "Resumen de corrida"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ejecuciones_recoleccion\nSET fin = now(), paginas_obtenidas = $2, posts_devueltos = $3, cursor_agotado = $4, estado = 'ok'\nWHERE id = $1\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.ejecucion_id }}, {{ $json.paginas_obtenidas }}, {{ $json.posts_devueltos }}, {{ $json.cursor_agotado }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1820,
+        112
+      ],
+      "id": "7784085a-02b9-4a30-852f-38f8ac3e3bfa",
+      "name": "Cerrar ejecución",
+      "credentials": {
+        "postgres": {
+          "id": "ISsMdjz9UsSpzhEG",
+          "name": "Postgres account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Vuelve a emitir las páginas de \"Etiquetar página\" (el registro de la corrida se hizo en el medio).\nreturn $('Etiquetar página').all().map(item => ({ json: item.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        112
+      ],
+      "id": "9492eceb-55fe-4822-b2a8-acbe3b3226c8",
+      "name": "Recuperar páginas"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Una captura por post devuelto en ESTA corrida (modelo N:M). A diferencia de posts_bluesky,\n// acá no se pisa nada: si \"ransomware mexico\" y \"malware chile\" traen el mismo post, quedan las\n// dos pertenencias.\nconst ejecucionId = $('Registrar inicio de ejecución').first().json.id;\nreturn $('Limpieza y recopilación de datos').all().map(item => ({\n  json: {\n    ejecucion_id: ejecucionId,\n    post_uri: item.json.id,\n    keyword_busqueda: item.json.keyword_busqueda,\n    pais: item.json.pais,\n    pagina: item.json.pagina_recoleccion\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2920,
+        112
+      ],
+      "id": "cb4357d5-4ce6-4596-9d46-e939ed0c10e9",
+      "name": "Preparar capturas"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- ON CONFLICT: el cursor de la API puede repetir un post entre páginas; se guarda una vez por corrida.\nINSERT INTO capturas (ejecucion_id, post_uri, keyword_busqueda, pais, pagina)\nVALUES ($1, $2, $3, $4, $5)\nON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ $json.ejecucion_id }}, {{ $json.post_uri }}, {{ $json.keyword_busqueda }}, {{ $json.pais }}, {{ $json.pagina }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3140,
+        112
+      ],
+      "id": "ff4fae85-7d93-411e-ac23-c132379364cc",
+      "name": "Insertar capturas",
+      "credentials": {
+        "postgres": {
+          "id": "ISsMdjz9UsSpzhEG",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
   "connections": {
@@ -539,7 +819,7 @@
       "main": [
         [
           {
-            "node": "Validar keyword y pais",
+            "node": "Normalizar búsqueda",
             "type": "main",
             "index": 0
           }
@@ -550,7 +830,7 @@
       "main": [
         [
           {
-            "node": "Nodo: LoginBluesky",
+            "node": "Registrar inicio de ejecución",
             "type": "main",
             "index": 0
           }
@@ -568,7 +848,7 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Guardar sesión",
             "type": "main",
             "index": 0
           }
@@ -612,7 +892,7 @@
       "main": [
         [
           {
-            "node": "Contar resultados",
+            "node": "Preparar capturas",
             "type": "main",
             "index": 0
           }
@@ -634,7 +914,171 @@
       "main": [
         [
           {
+            "node": "Resumen de corrida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar inicio de ejecución": {
+      "main": [
+        [
+          {
+            "node": "Leer sesión Bluesky",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer sesión Bluesky": {
+      "main": [
+        [
+          {
+            "node": "Evaluar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar sesión": {
+      "main": [
+        [
+          {
+            "node": "¿Sesión vigente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Sesión vigente?": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Se puede refrescar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Se puede refrescar?": {
+      "main": [
+        [
+          {
+            "node": "Refrescar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nodo: LoginBluesky",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refrescar sesión": {
+      "main": [
+        [
+          {
+            "node": "Guardar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nodo: LoginBluesky",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar sesión": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen de corrida": {
+      "main": [
+        [
+          {
+            "node": "Cerrar ejecución",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cerrar ejecución": {
+      "main": [
+        [
+          {
+            "node": "Recuperar páginas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recuperar páginas": {
+      "main": [
+        [
+          {
             "node": "Separar posts individuales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar capturas": {
+      "main": [
+        [
+          {
+            "node": "Insertar capturas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar búsqueda": {
+      "main": [
+        [
+          {
+            "node": "Validar keyword y pais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar capturas": {
+      "main": [
+        [
+          {
+            "node": "Contar resultados",
             "type": "main",
             "index": 0
           }

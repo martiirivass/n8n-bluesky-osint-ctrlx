@@ -2,9 +2,11 @@
 
 Sistema de recolección y análisis de publicaciones públicas sobre ciberseguridad en América Latina, usando Bluesky (AT Protocol) como fuente de datos. El pipeline recolecta posts (manualmente o bajo demanda desde el dashboard), los limpia, calcula métricas de engagement y país, y los persiste en PostgreSQL; un dashboard web interactivo consume esos datos a través de un Webhook de n8n, con filtros por país/keyword y un mapa clickeable de la región.
 
-## Validación manual
+## Documentación
 
+- [Metodología de recolección y reproducibilidad](METODOLOGIA.md): versiones exactas del código y del corpus (hashes), consultas y parámetros enviados a Bluesky, qué se sabe de las corridas, regla de atribución por keyword/país y correcciones posteriores a la auditoría.
 - [Validación manual de relevancia temática](validacion/README.md)
+- Anexos de código y DDL generados desde el repositorio: [`docs/anexos/`](docs/anexos/) (`python herramientas/extraer_anexos.py`)
 
 ## Arquitectura
 
@@ -18,7 +20,7 @@ dashboard.html (form "Nueva búsqueda") → n8n (Workflow 3: bajo demanda) ┘
                            dashboard.html (front)
 ```
 
-- **Workflow 1 — Recolección manual**: se ejecuta a mano desde el editor de n8n. Login en Bluesky → búsqueda por keyword + país con **paginación por cursor** (hasta 10 páginas de 100 resultados) → separación de posts → limpieza/cálculo de métricas → guardado en Postgres (con deduplicación por `post_uri`).
+- **Workflow 1 — Recolección manual**: se ejecuta a mano desde el editor de n8n. Normalización de keyword y país → registro de la corrida → sesión de Bluesky (reutilizada o renovada; login solo si hace falta) → búsqueda por keyword + país con **paginación por cursor** (hasta 10 páginas de 100 resultados) → separación de posts → limpieza/cálculo de métricas → guardado en Postgres (deduplicación por `post_uri`) → una **captura** por post devuelto (tabla `capturas`, N:M).
 - **Workflow 3 — Nueva búsqueda (bajo demanda)**: mismo pipeline de recolección que el Workflow 1 (incluida la paginación), pero disparado por un Webhook POST en vez del botón manual. Permite lanzar una búsqueda nueva (keyword + país) directamente desde el formulario del dashboard, sin abrir n8n.
 - **Workflow 2 — API para el dashboard**: siempre activo. Expone un Webhook que trae el historial completo de Postgres, calcula agregados (fuentes, frecuencia temporal, mayor engagement, posts por país) y devuelve todo en un JSON.
 - **dashboard.html**: página estática (dark, estilo dossier editorial) que consume el Webhook y renderiza las métricas, el mapa interactivo y el listado de posts. No necesita servidor propio, se abre directo en el navegador.
@@ -147,23 +149,47 @@ Una vez importados, en **cada nodo Postgres** de los tres workflows, seleccionar
 
 > ⚠️ **No pongas el usuario/password directo en el campo "Body" del nodo HTTP Request.** Ese campo se exporta tal cual al archivo `.json` del workflow — si en algún momento reexportás y commiteás, el password queda en texto plano en el historial de git para siempre (nos pasó una vez en este proyecto: un App Password real terminó pusheado a GitHub y tuvo que revocarse). El método Custom Auth guarda las credenciales encriptadas en el vault de n8n, igual que Postgres, y el export solo lleva una referencia.
 
-### 3.5. Crear la tabla en Postgres
+### 3.5. Crear (o migrar) las tablas en Postgres
 
-Ejecutar una vez el nodo **"Crear tabla posts_bluesky"** del Workflow 1 (botón "Execute step"), o correr manualmente el schema:
+**Base nueva:**
 
 ```bash
 docker exec -i postgres_n8n psql -U tu_usuario -d tu_base < database/schema.sql
 ```
 
-Si preferís arrancar con datos ya recolectados durante el desarrollo, usar `database/backup_con_datos.sql` en su lugar (dump completo con schema + datos reales).
+(o ejecutar una vez el nodo **"Crear/migrar esquema (ejecutar una vez)"** del Workflow 1 con "Execute step"; está suelto a propósito, no corre en cada ejecución).
 
-### 3.6. Activar el Workflow 2 (API)
+**Base que ya tenía datos** (versión anterior, solo `posts_bluesky`): correr la migración, que es idempotente y además copia a `capturas` la atribución que tenía cada post. Hacer un respaldo antes (sección 2.1).
+
+```bash
+docker exec -i postgres_n8n psql -U tu_usuario -d tu_base < database/migraciones/001_capturas_ejecuciones_sesion_indices.sql
+```
+
+Los Workflows 1 y 3 corregidos **necesitan** las tablas nuevas (`paises`, `ejecuciones_recoleccion`, `capturas`, `bluesky_sesion`): sin la migración fallan en el nodo "Registrar inicio de ejecución".
+
+El dump con datos reales que había en el repo (`backup_con_datos.sql`) se sacó del control de versiones por contener handles y textos de usuarios (ver `METODOLOGIA.md`, sección 8).
+
+### 3.6. Proteger los webhooks (credential Header Auth)
+
+Los webhooks `/dashboard-data` y `/nueva-busqueda` exigen una clave en el encabezado `X-API-Key`.
+
+1. En n8n: **Credentials → New → Header Auth**. *Name*: `X-API-Key`. *Value*: una clave larga y aleatoria (por ejemplo, la salida de `python -c "import secrets; print(secrets.token_urlsafe(32))"`).
+2. Asignarla en el nodo **Webhook** del Workflow 2 y en **Webhook - Nueva búsqueda** del Workflow 3 (*Authentication* ya viene en `Header Auth`; falta elegir la credential).
+3. En el tablero, pegar la misma clave en el campo **"clave de acceso"** (se recuerda solo mientras la pestaña esté abierta).
+
+CORS: ambos webhooks solo aceptan pedidos del navegador desde `http://localhost:8080` o `http://127.0.0.1:8080` (opción *Allowed Origins* del Webhook y encabezado `Access-Control-Allow-Origin` de los nodos Respond). Para servir el tablero desde otro origen, cambiarlo en esos cuatro lugares.
+
+### 3.7. Activar el Workflow 2 (API)
 
 El Workflow 1 y el Workflow 3 se ejecutan bajo demanda, pero el **Workflow 2 tiene que quedar publicado/activo** para que el Webhook responda en todo momento:
 
 1. Abrir el Workflow 2
 2. Click en **"Publish"** (o el toggle "Active", según la versión de n8n)
-3. Confirmar que la URL de producción responda: abrir `http://localhost:5678/webhook/dashboard-data` en una pestaña nueva — debería devolver un JSON.
+3. Confirmar que la URL de producción responda:
+   ```bash
+   curl -H "X-API-Key: <tu clave>" http://localhost:5678/webhook/dashboard-data
+   ```
+   Debería devolver un JSON; sin el encabezado o con una clave incorrecta, un 401/403.
 
 Repetir el mismo paso de publicar para el **Workflow 3** (su webhook es el que recibe las búsquedas nuevas desde el dashboard).
 
@@ -176,7 +202,7 @@ Repetir el mismo paso de publicar para el **Workflow 3** (su webhook es el que r
 > 2. **El campo "Path" del nodo Webhook tiene la URL completa en vez de solo el segmento final.** Este bug nos costó bastante tiempo depurar: el campo debe decir solo `dashboard-data` (o `nueva-busqueda`), **nunca** `http://localhost:5678/webhook/dashboard-data`. Si tiene la URL completa, ningún reinicio lo va a arreglar — hay que corregir el campo Path manualmente y volver a publicar.
 > 3. Si tenías versiones anteriores de un workflow importadas (sin el sufijo V2, de una sesión previa), asegurate de que **solo una quede activa** por cada path de webhook — dos workflows activos con el mismo path generan conflictos de registro.
 
-### 3.7. Endpoint del Workflow 3 en el dashboard
+### 3.8. Endpoint del Workflow 3 en el dashboard
 
 El dashboard trae un campo **"Endpoint del webhook"** en el formulario de "Nueva búsqueda" que por defecto apunta a `http://localhost:5678/webhook/nueva-busqueda`. Si cambiaste el path del Webhook del Workflow 3, actualizá ese campo también.
 
@@ -205,7 +231,13 @@ Se recomienda correr recolecciones con cierta frecuencia para ir acumulando hist
 
 ## 5. Usar el dashboard
 
-Abrir `frontend/dashboard.html` con doble click (se abre en el navegador, no necesita servidor).
+Servir la carpeta `frontend/` en el puerto 8080 y abrir el tablero desde ahí:
+
+```bash
+python -m http.server 8080 --bind 127.0.0.1 --directory frontend
+```
+
+→ `http://localhost:8080/dashboard.html`. Ya no alcanza con abrir el archivo con doble click: desde `file://` el navegador manda el origen `null`, que los webhooks rechazan (CORS restringido, sección 3.6). Después, pegar la clave de acceso en el campo de arriba a la derecha.
 
 - **KPIs**: publicaciones recolectadas, días con actividad, promedio diario, y un donut con el % de cuentas *bridged* (puenteadas desde otra plataforma vía Bridgy Fed) vs. nativas.
 - **Fuentes citadas** y **Frecuencia temporal**: se recalculan en el navegador a partir del set de posts filtrado — no vienen fijos del webhook.
@@ -217,13 +249,27 @@ Abrir `frontend/dashboard.html` con doble click (se abre en el navegador, no nec
 - **Última recolección real**: además de la hora de conexión, muestra el `fecha_insercion` más reciente entre todos los posts — para distinguir "cuándo cargó la página" de "cuándo se recolectó el dato realmente".
 - **Impresión**: `Ctrl+P` aplica una hoja de estilos clara pensada para anexar una captura al documento de tesis (oculta los controles interactivos).
 
-### Troubleshooting: error de CORS
+### Troubleshooting: error de CORS o 403
 
-El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en el nodo "Respond to Webhook". Si por algún motivo lo perdés (por ejemplo al reconstruir el workflow desde cero), agregalo en **Options → Response Headers** de ese nodo.
+- **401 / 403**: falta la clave o no coincide con la credential Header Auth (sección 3.6).
+- **CORS**: el tablero tiene que estar servido desde `http://localhost:8080` o `http://127.0.0.1:8080`, no abierto como archivo. Si se usa otro origen, agregarlo en *Allowed Origins* de los webhooks y en el encabezado `Access-Control-Allow-Origin` de los nodos Respond.
 
 ---
 
-## 6. Estructura de datos (tabla `posts_bluesky`)
+## 6. Estructura de datos
+
+DDL completo en `database/schema.sql`. Tablas:
+
+| Tabla | Una fila por… | Para qué |
+|---|---|---|
+| `posts_bluesky` | publicación (`post_uri` único) | Contenido y métricas del post. `keyword_busqueda` / `pais` / `pagina_recoleccion` = **última** búsqueda que lo trajo |
+| `capturas` | vez que una corrida devolvió un post | Modelo N:M post × (keyword, país). **Fuente para los desgloses por país y keyword** |
+| `pertenencias` (vista) | combinación distinta por post | `DISTINCT post_uri, keyword_busqueda, pais` de `capturas` |
+| `ejecuciones_recoleccion` | corrida de búsqueda | Inicio/fin, `q` exacta, parámetros, páginas, posts devueltos, si el cursor se agotó |
+| `paises` | país admitido | Lista cerrada (slug sin tildes); FK desde las otras tablas |
+| `bluesky_sesion` | (una sola fila) | Sesión de Bluesky reutilizada entre corridas |
+
+### Tabla `posts_bluesky`
 
 | Columna | Tipo | Descripción |
 |---|---|---|
@@ -236,7 +282,7 @@ El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en 
 | `fecha_creacion` | TIMESTAMP | Fecha de creación del post en Bluesky |
 | `fecha_indexado` | TIMESTAMP | Fecha en que Bluesky indexó el post |
 | `likes`, `reposts`, `replies`, `quotes` | INT | Métricas de interacción |
-| `engagement_score` | NUMERIC | `likes + reposts*2 + replies*1.5 + quotes*2` |
+| `engagement_score` | NUMERIC | `likes + reposts*2 + replies*1.5 + quotes*2`. **Ojo**: el driver de Node lo devuelve como texto; al leerlo desde n8n castear a `float8` (o `Number()`), si no, las comparaciones son alfabéticas (`"9.5" > "230"`) |
 | `fuente_dominio` | TEXT | Dominio del link externo compartido, si tiene (ej. `infobae.com`) |
 | `es_bridged` | BOOLEAN | `true` si la cuenta es un puente automático desde otra plataforma (vía Bridgy Fed) |
 | `keyword_busqueda` | TEXT | Término de búsqueda que trajo este post |
@@ -249,7 +295,7 @@ El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en 
 
 - **Sesgo de recencia.** `searchPosts` devuelve primero lo más reciente. Desde el 24/09/2026 cada búsqueda recorre todas las páginas que entrega la API (hasta 10); en la recolección completa (9 keywords × 5 países, 45 búsquedas) ninguna llegó al tope de páginas (la mayor fue de 507 posts en 6 páginas), o sea que el cursor se agotó en todas y no hubo truncamiento por el tope. Aun así el sesgo se reduce pero no desaparece: a igual cantidad de posts, la distribución por página sigue mostrando que lo reciente pesa más (página 1: 54 % de los posts son de los últimos 6 meses; páginas 2-3: 14 %; páginas 4 en adelante: 0 %). Un aumento de volumen reciente debe interpretarse con esto en mente.
 - **`pagina_recoleccion` se pisa.** Como el guardado es un upsert por `post_uri`, si un post reaparece en otra corrida queda con la página de la **última** corrida, no de la primera. Hoy 4.015 de los 4.016 posts tienen página (todos fueron re-recolectados con paginación); un post que solo apareció en una corrida anterior a la paginación tendría `NULL`.
-- **`keyword_busqueda` también se pisa**, por el mismo motivo: guarda la última búsqueda que encontró el post, por lo que los desgloses por keyword subestiman.
+- **`keyword_busqueda` y `pais` también se pisan**, por el mismo motivo: guardan la última búsqueda que encontró el post. Desde la migración 001 cada corrida deja además una fila en `capturas` y los desgloses se calculan desde ahí (un post puede contar en varios países/keywords). Los datos anteriores solo conservan la última atribución (ver `METODOLOGIA.md`, sección 5).
 - **Colisión México / Nuevo México.** En la recolección completa, 81 de 1.509 posts con `pais = 'mexico'` (5,4 %) mencionan «New Mexico» (EE. UU.) y quedaron marcados con `posible_falso_positivo_geografico`; en la primera muestra de 600 posts eran 21 (3,5 %), lo que sugiere que la colisión pesa más a mayor profundidad histórica. El flag lo puso el propio workflow de n8n (verificado de punta a punta con datos reales: 0 posts sin marcar que debieran estarlo, 0 marcados en otros países). No detecta variantes como `new-mexico` (con guion). El dashboard todavía no excluye estos posts; hoy el Workflow 2 ya entrega el campo.
 - **Keywords probadas y descartadas** (con respaldo en `database/backups/`, no versionado por contener handles reales):
   - `CERT`: de 126 posts etiquetados, solo 10 (8 %) usaban la sigla; el resto eran coincidencias sueltas con otras palabras (pasaportes, gastronomía, videojuegos). Se borraron los 113 de ruido puro (sin sigla en mayúscula ni ningún término de seguridad) y se conservaron 13.
@@ -296,13 +342,22 @@ El Workflow 2 ya trae configurado el header `Access-Control-Allow-Origin: *` en 
 
 - [ ] **Reexportar `Workflow 1 V2` y `Workflow 2 V2`** desde n8n después de cualquier cambio manual (actualmente el repo puede quedar desincronizado de lo que corre en la instancia real — pasó con el fix de Custom Auth y con el agregado de `pais`/`fecha_insercion` a la query del Workflow 2).
 - [ ] Usar `posible_falso_positivo_geografico` y `pagina_recoleccion` en el dashboard (el Workflow 2 ya los entrega): excluir o resaltar los posibles falsos positivos y mostrar la distribución por página.
-- [ ] **Mover la agregación al servidor** (Workflow 2): hoy devuelve todos los posts en un solo JSON (4.016 posts ≈ 2,9 MB; el dashboard lo renderiza sin problemas, pero crece linealmente con cada país o keyword nuevos). Que Postgres devuelva los agregados y el listado se pagine o se sirva aparte.
+- [ ] **Mover la agregación al servidor** (Workflow 2; los índices necesarios ya están creados en la migración 001): hoy devuelve todos los posts en un solo JSON (4.016 posts ≈ 2,9 MB; el dashboard lo renderiza sin problemas, pero crece linealmente con cada país o keyword nuevos). Que Postgres devuelva los agregados y el listado se pagine o se sirva aparte.
 - [ ] Evaluar otras colisiones geográficas (ej. «Georgia», «Columbia») y agregarlas a `COLISIONES_GEOGRAFICAS` en el nodo de limpieza.
 - [ ] Repetir la recolección de Brasil con keywords en portugués (las keywords en español favorecen los términos que se usan igual en inglés).
 - [ ] Detectar links compartidos como texto plano vía `record.facets`, no solo como tarjeta embebida (`embed.external.uri`) — hoy se pierden fuentes externas que no generan preview card.
 - [ ] Automatizar la recolección con Schedule Trigger (cuando haya un entorno con disponibilidad continua).
 - [ ] **Validación manual de relevancia (n=80)**: el sorteo (semilla 2026, reproducible) y el cálculo de estadísticas ya están en `validacion/`; falta la clasificación humana de la planilla. Mide relevancia temática y relevancia geográfica por separado, con acuerdo entre dos evaluadores (kappa) sobre un subconjunto. Es una muestra nueva sobre los 3.908 posts finales, no una continuación de la anterior (cuya semilla y lista no se conservaron).
-- [ ] `.gitignore` del repo.
 - [ ] Sticky Notes explicativas en el canvas de los workflows (útil para mostrar el pipeline en vivo durante la defensa).
-- [ ] Autenticación en los Webhooks si se exponen fuera de `localhost` (hoy están abiertos, aceptable solo para uso local).
+- [x] Autenticación en los webhooks (Header Auth) y CORS restringido al origen del tablero. Riesgos que siguen abiertos: `METODOLOGIA.md`, sección 7.6.
+- [ ] Medir cuántas publicaciones del corpus devuelve más de una combinación (`METODOLOGIA.md`, sección 5.3).
+- [ ] Incorporar la planilla completa del evaluador B (hoy el κ de la sección 5.6 no se puede reproducir desde el repo; `METODOLOGIA.md`, sección 6).
+- [x] Licencia: MIT (código) + CC BY 4.0 (documentación).
+- [x] Historial de git purgado de archivos con datos personales y del App Password (`METODOLOGIA.md`, sección 8).
 - [ ] Ampliar/revisar la sección 8 (ética/legal) con el director de tesis.
+
+---
+
+## Licencia
+
+Código bajo [MIT](LICENSE). Documentación (`*.md`, `docs/`) bajo [CC BY 4.0](LICENSE-docs). © 2026 Enzo Dengra y Martiniano Rivas.
