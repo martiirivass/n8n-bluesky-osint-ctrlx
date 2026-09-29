@@ -2,7 +2,12 @@
 # No se suben por defecto (ver README, seccion 8 sobre anonimizacion).
 # Para subir uno a proposito: git add -f <archivo>
 database/backups/
-database/export_posts_latam.json
+database/export_posts_latam*.json
+database/backup_con_datos.sql
+
+# Validación: muestra con textos, URIs (contienen el DID del autor), handles y las planillas de
+# los evaluadores. En el repo queda solo la versión seudonimizada (validacion/seudonimizar_validacion.py).
+validacion/privado/
 
 # Archivos temporales de Excel
 ~$*.xlsx

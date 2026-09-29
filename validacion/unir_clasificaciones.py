@@ -17,10 +17,10 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 DIR = Path(__file__).resolve().parent
-BASE = DIR / "validacion_muestra_80.csv"
-PLANILLA_A = DIR / "planilla_evaluador_A.xlsx"
-PLANILLA_B = DIR / "planilla_evaluador_B.xlsx"
-SALIDA = DIR / "validacion_muestra_80_clasificada.csv"
+BASE = DIR / "privado" / "validacion_muestra_80.csv"  # privado/: textos y URIs, no se versiona
+PLANILLA_A = DIR / "privado" / "planilla_evaluador_A.xlsx"
+PLANILLA_B = DIR / "privado" / "planilla_evaluador_B.xlsx"
+SALIDA = DIR / "privado" / "validacion_muestra_80_clasificada.csv"
 
 
 def leer_planilla(ruta):

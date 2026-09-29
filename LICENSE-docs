@@ -1,0 +1,17 @@
+Documentación de "Observatorio OSINT — Ciberseguridad en redes sociales de LATAM"
+Copyright (c) 2026 Enzo Dengra y Martiniano Rivas
+
+La documentación de este repositorio (archivos *.md y el contenido de docs/) se distribuye bajo la
+licencia Creative Commons Atribución 4.0 Internacional (CC BY 4.0).
+
+Resumen: se puede copiar, redistribuir, adaptar y usar con cualquier fin, incluso comercial,
+siempre que se dé crédito a los autores, se indique la licencia y se señale si se hicieron cambios.
+
+Texto legal completo: https://creativecommons.org/licenses/by/4.0/legalcode.es
+Resumen oficial:      https://creativecommons.org/licenses/by/4.0/deed.es
+
+El código fuente (workflows de n8n, SQL, scripts y el tablero) se distribuye bajo la licencia MIT:
+ver el archivo LICENSE.
+
+Esta licencia no cubre los datos recolectados de Bluesky (publicaciones, handles y métricas de
+terceros), que no se distribuyen en este repositorio.
