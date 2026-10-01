@@ -4,9 +4,9 @@ Generado con `python herramientas/extraer_anexos.py` a partir de los archivos ex
 
 | Archivo | SHA-256 |
 |---|---|
-| `n8n/Workflow 1_ Recolección de datos - Bluesky OSINT V2.json` | `e7a45b60a24c079ccd778426682ffe54d304658f17611adef9477dbc109ef34e` |
+| `n8n/Workflow 1_ Recolección de datos - Bluesky OSINT V2.json` | `22681ccf44e79371728d4b0a130cc160ae98ed1f05bbd2e2e3b2c1a173ac7c7d` |
 | `n8n/Workflow 2_ API para el dashboard - Bluesky OSINT V2.json` | `b571a1f02cd43c54a1bff358fffc452488427ac1dabd45c1ebdafb05a189d171` |
-| `n8n/Workflow 3_ Nueva búsqueda desde el dashboard - Bluesky OSINT.json` | `654c067460add7dc36d8e38bd7055b1e7e2af2e036b66df31ea821fb16b31ef1` |
+| `n8n/Workflow 3_ Nueva búsqueda desde el dashboard - Bluesky OSINT.json` | `8edfd52b78fc012ddef207b2e581d8db9386c5189eab4b1dab1177746713efce` |
 
 ## Workflow 1: Recolección de datos - Bluesky OSINT V2
 
@@ -34,11 +34,13 @@ Generado con `python herramientas/extraer_anexos.py` a partir de los archivos ex
 - Refrescar sesión (salida 1) → Nodo: LoginBluesky
 - Guardar sesión → HTTP Request
 - Resumen de corrida → Cerrar ejecución
-- Cerrar ejecución → Recuperar páginas
+- Cerrar ejecución → ¿Hay posts?
 - Recuperar páginas → Separar posts individuales
 - Preparar capturas → Insertar capturas
 - Normalizar búsqueda → Registrar inicio de ejecución
 - Insertar capturas → Traer historial completo
+- ¿Hay posts? (salida 0) → Recuperar páginas
+- ¿Hay posts? (salida 1) → 
 
 ### Nodos (en orden de recorrido del grafo, desde el disparador)
 
@@ -299,6 +301,7 @@ const pais = ALIAS[paisNormalizado] || paisNormalizado;
 let error = null;
 if (!keyword || !pais) error = "Faltan los campos 'keyword' y/o 'pais'.";
 else if (keyword.length > 100) error = "La keyword no puede superar los 100 caracteres.";
+else if (keyword.includes('�')) error = "La keyword llegó mal codificada (carácter �): el cuerpo de la request tiene que ir en UTF-8.";
 else if (!PAISES.includes(pais)) error = `País no válido: "${entrada.pais}". Valores aceptados: ${PAISES.join(', ')}.`;
 
 if (error) throw new Error(error);
@@ -590,6 +593,35 @@ RETURNING id;
 ```
 
 Parámetros ($1, $2, …): `={{ $json.ejecucion_id }}, {{ $json.paginas_obtenidas }}, {{ $json.posts_devueltos }}, {{ $json.cursor_agotado }}`
+
+#### ¿Hay posts?
+
+Tipo: `if` (v2)
+
+```json
+{
+  "conditions": {
+    "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+    },
+    "conditions": [
+      {
+        "id": "86fd20fe-7238-4017-98cd-cc235e6c32ce",
+        "leftValue": "={{ $('Resumen de corrida').first().json.posts_devueltos }}",
+        "rightValue": 0,
+        "operator": {
+          "type": "number",
+          "operation": "gt"
+        }
+      }
+    ],
+    "combinator": "and"
+  },
+  "options": {}
+}
+```
 
 #### Recuperar páginas
 
@@ -1142,11 +1174,13 @@ Tipo: `respondToWebhook` (v1.5)
 - Refrescar sesión (salida 1) → Nodo: LoginBluesky
 - Guardar sesión → HTTP Request
 - Resumen de corrida → Cerrar ejecución
-- Cerrar ejecución → Recuperar páginas
+- Cerrar ejecución → ¿Hay posts?
 - Recuperar páginas → Separar posts individuales
 - Preparar capturas → Insertar capturas
 - Normalizar búsqueda → Validar keyword y pais
 - Insertar capturas → Contar resultados
+- ¿Hay posts? (salida 0) → Recuperar páginas
+- ¿Hay posts? (salida 1) → Contar resultados
 
 ### Nodos (en orden de recorrido del grafo, desde el disparador)
 
@@ -1230,6 +1264,7 @@ const pais = ALIAS[paisNormalizado] || paisNormalizado;
 let error = null;
 if (!keyword || !pais) error = "Faltan los campos 'keyword' y/o 'pais'.";
 else if (keyword.length > 100) error = "La keyword no puede superar los 100 caracteres.";
+else if (keyword.includes('�')) error = "La keyword llegó mal codificada (carácter �): el cuerpo de la request tiene que ir en UTF-8.";
 else if (!PAISES.includes(pais)) error = `País no válido: "${entrada.pais}". Valores aceptados: ${PAISES.join(', ')}.`;
 
 // Si hay error, el nodo "Validar keyword y pais" corta acá y responde 400.
@@ -1577,6 +1612,35 @@ RETURNING id;
 
 Parámetros ($1, $2, …): `={{ $json.ejecucion_id }}, {{ $json.paginas_obtenidas }}, {{ $json.posts_devueltos }}, {{ $json.cursor_agotado }}`
 
+#### ¿Hay posts?
+
+Tipo: `if` (v2)
+
+```json
+{
+  "conditions": {
+    "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+    },
+    "conditions": [
+      {
+        "id": "236076c2-b128-4b58-a554-41fc6c4a1553",
+        "leftValue": "={{ $('Resumen de corrida').first().json.posts_devueltos }}",
+        "rightValue": 0,
+        "operator": {
+          "type": "number",
+          "operation": "gt"
+        }
+      }
+    ],
+    "combinator": "and"
+  },
+  "options": {}
+}
+```
+
 #### Recuperar páginas
 
 Tipo: `code` (v2)
@@ -1584,6 +1648,29 @@ Tipo: `code` (v2)
 ```javascript
 // Vuelve a emitir las páginas de "Etiquetar página" (el registro de la corrida se hizo en el medio).
 return $('Etiquetar página').all().map(item => ({ json: item.json }));
+```
+
+#### Contar resultados
+
+Tipo: `code` (v2) · executeOnce=True
+
+```javascript
+const busqueda = $('Normalizar búsqueda').first().json;
+const resumen = $('Resumen de corrida').first().json;
+// Si la búsqueda no devolvió nada, "Limpieza" no se ejecutó (rama false de "¿Hay posts?").
+let procesados = 0;
+try { procesados = $('Limpieza y recopilación de datos').all().length; } catch (e) { procesados = 0; }
+return [{
+  json: {
+    ok: true,
+    keyword: busqueda.keyword,
+    pais: busqueda.pais,
+    ejecucion_id: resumen.ejecucion_id,
+    paginas_obtenidas: resumen.paginas_obtenidas,
+    cursor_agotado: resumen.cursor_agotado,
+    posts_procesados: procesados
+  }
+}];
 ```
 
 #### Separar posts individuales
@@ -1594,6 +1681,31 @@ Tipo: `splitOut` (v1)
 {
   "fieldToSplitOut": "posts",
   "options": {}
+}
+```
+
+#### Respond ok
+
+Tipo: `respondToWebhook` (v1.5)
+
+```json
+{
+  "respondWith": "json",
+  "responseBody": "={{ $json }}",
+  "options": {
+    "responseHeaders": {
+      "entries": [
+        {
+          "name": "Access-Control-Allow-Origin",
+          "value": "={{ [\"http://localhost:8080\", \"http://127.0.0.1:8080\"].includes($('Webhook - Nueva búsqueda').first().json.headers.origin) ? $('Webhook - Nueva búsqueda').first().json.headers.origin : 'http://localhost:8080' }}"
+        },
+        {
+          "name": "Vary",
+          "value": "Origin"
+        }
+      ]
+    }
+  }
 }
 ```
 
@@ -1728,48 +1840,3 @@ ON CONFLICT DO NOTHING;
 ```
 
 Parámetros ($1, $2, …): `={{ $json.ejecucion_id }}, {{ $json.post_uri }}, {{ $json.keyword_busqueda }}, {{ $json.pais }}, {{ $json.pagina }}`
-
-#### Contar resultados
-
-Tipo: `code` (v2) · executeOnce=True
-
-```javascript
-const busqueda = $('Normalizar búsqueda').first().json;
-const resumen = $('Resumen de corrida').first().json;
-return [{
-  json: {
-    ok: true,
-    keyword: busqueda.keyword,
-    pais: busqueda.pais,
-    ejecucion_id: resumen.ejecucion_id,
-    paginas_obtenidas: resumen.paginas_obtenidas,
-    cursor_agotado: resumen.cursor_agotado,
-    posts_procesados: $('Limpieza y recopilación de datos').all().length
-  }
-}];
-```
-
-#### Respond ok
-
-Tipo: `respondToWebhook` (v1.5)
-
-```json
-{
-  "respondWith": "json",
-  "responseBody": "={{ $json }}",
-  "options": {
-    "responseHeaders": {
-      "entries": [
-        {
-          "name": "Access-Control-Allow-Origin",
-          "value": "={{ [\"http://localhost:8080\", \"http://127.0.0.1:8080\"].includes($('Webhook - Nueva búsqueda').first().json.headers.origin) ? $('Webhook - Nueva búsqueda').first().json.headers.origin : 'http://localhost:8080' }}"
-        },
-        {
-          "name": "Vary",
-          "value": "Origin"
-        }
-      ]
-    }
-  }
-}
-```

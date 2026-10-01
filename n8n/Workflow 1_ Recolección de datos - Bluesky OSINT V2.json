@@ -554,7 +554,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normaliza keyword y país ANTES de buscar y de guardar. Sin esto, \"México\", \"mexico\" y \"Mexico\"\n// quedaban como tres países distintos en la base. El país tiene que estar en la lista cerrada\n// (la misma que la tabla `paises`, ver database/schema.sql); si no está, la corrida se rechaza.\nconst PAISES = [\n  'argentina', 'bahamas', 'belice', 'bolivia', 'brasil', 'chile',\n  'colombia', 'costa rica', 'cuba', 'dominica', 'ecuador', 'el salvador',\n  'guatemala', 'guyana', 'haiti', 'honduras', 'jamaica', 'mexico',\n  'nicaragua', 'panama', 'paraguay', 'peru', 'puerto rico', 'republica dominicana',\n  'san vicente y las granadinas', 'santa lucia', 'surinam', 'trinidad y tobago', 'uruguay', 'venezuela'\n];\nconst ALIAS = {\n  brazil: 'brasil', belize: 'belice', suriname: 'surinam', 'dominican republic': 'republica dominicana',\n  'saint lucia': 'santa lucia', 'trinidad and tobago': 'trinidad y tobago'\n};\n\n// Parámetros de searchPosts. Se registran tal cual en ejecuciones_recoleccion.\n// OJO: MAX_PAGINAS e INTERVALO_MS tienen que coincidir con \"HTTP Request\" → Options → Pagination.\nconst LIMIT_POR_PAGINA = 100;\nconst MAX_PAGINAS = 10;\nconst INTERVALO_MS = 500;\n\nfunction normalizar(s) {\n  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ').trim();\n}\n\nconst entrada = $input.first().json;\nconst keyword = String(entrada.keyword ?? '').replace(/\\s+/g, ' ').trim();\nconst paisNormalizado = normalizar(entrada.pais);\nconst pais = ALIAS[paisNormalizado] || paisNormalizado;\n\nlet error = null;\nif (!keyword || !pais) error = \"Faltan los campos 'keyword' y/o 'pais'.\";\nelse if (keyword.length > 100) error = \"La keyword no puede superar los 100 caracteres.\";\nelse if (!PAISES.includes(pais)) error = `País no válido: \"${entrada.pais}\". Valores aceptados: ${PAISES.join(', ')}.`;\n\nif (error) throw new Error(error);\n\nreturn [{\n  json: {\n    keyword,\n    pais,\n    q: `${keyword} ${pais}`,   // valor EXACTO que se manda en q= (el país va normalizado: \"mexico\", \"brasil\")\n    limit_por_pagina: LIMIT_POR_PAGINA,\n    max_paginas: MAX_PAGINAS,\n    intervalo_ms: INTERVALO_MS,\n    error\n  }\n}];"
+        "jsCode": "// Normaliza keyword y país ANTES de buscar y de guardar. Sin esto, \"México\", \"mexico\" y \"Mexico\"\n// quedaban como tres países distintos en la base. El país tiene que estar en la lista cerrada\n// (la misma que la tabla `paises`, ver database/schema.sql); si no está, la corrida se rechaza.\nconst PAISES = [\n  'argentina', 'bahamas', 'belice', 'bolivia', 'brasil', 'chile',\n  'colombia', 'costa rica', 'cuba', 'dominica', 'ecuador', 'el salvador',\n  'guatemala', 'guyana', 'haiti', 'honduras', 'jamaica', 'mexico',\n  'nicaragua', 'panama', 'paraguay', 'peru', 'puerto rico', 'republica dominicana',\n  'san vicente y las granadinas', 'santa lucia', 'surinam', 'trinidad y tobago', 'uruguay', 'venezuela'\n];\nconst ALIAS = {\n  brazil: 'brasil', belize: 'belice', suriname: 'surinam', 'dominican republic': 'republica dominicana',\n  'saint lucia': 'santa lucia', 'trinidad and tobago': 'trinidad y tobago'\n};\n\n// Parámetros de searchPosts. Se registran tal cual en ejecuciones_recoleccion.\n// OJO: MAX_PAGINAS e INTERVALO_MS tienen que coincidir con \"HTTP Request\" → Options → Pagination.\nconst LIMIT_POR_PAGINA = 100;\nconst MAX_PAGINAS = 10;\nconst INTERVALO_MS = 500;\n\nfunction normalizar(s) {\n  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ').trim();\n}\n\nconst entrada = $input.first().json;\nconst keyword = String(entrada.keyword ?? '').replace(/\\s+/g, ' ').trim();\nconst paisNormalizado = normalizar(entrada.pais);\nconst pais = ALIAS[paisNormalizado] || paisNormalizado;\n\nlet error = null;\nif (!keyword || !pais) error = \"Faltan los campos 'keyword' y/o 'pais'.\";\nelse if (keyword.length > 100) error = \"La keyword no puede superar los 100 caracteres.\";\nelse if (keyword.includes('�')) error = \"La keyword llegó mal codificada (carácter �): el cuerpo de la request tiene que ir en UTF-8.\";\nelse if (!PAISES.includes(pais)) error = `País no válido: \"${entrada.pais}\". Valores aceptados: ${PAISES.join(', ')}.`;\n\nif (error) throw new Error(error);\n\nreturn [{\n  json: {\n    keyword,\n    pais,\n    q: `${keyword} ${pais}`,   // valor EXACTO que se manda en q= (el país va normalizado: \"mexico\", \"brasil\")\n    limit_por_pagina: LIMIT_POR_PAGINA,\n    max_paginas: MAX_PAGINAS,\n    intervalo_ms: INTERVALO_MS,\n    error\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -823,6 +823,38 @@
           "name": "Postgres account"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "86fd20fe-7238-4017-98cd-cc235e6c32ce",
+              "leftValue": "={{ $('Resumen de corrida').first().json.posts_devueltos }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1490,
+        404
+      ],
+      "id": "8b4fab07-3640-4178-8ed9-bfda0e616852",
+      "name": "¿Hay posts?"
     }
   ],
   "connections": {
@@ -1080,7 +1112,7 @@
       "main": [
         [
           {
-            "node": "Recuperar páginas",
+            "node": "¿Hay posts?",
             "type": "main",
             "index": 0
           }
@@ -1129,6 +1161,18 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "¿Hay posts?": {
+      "main": [
+        [
+          {
+            "node": "Recuperar páginas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },

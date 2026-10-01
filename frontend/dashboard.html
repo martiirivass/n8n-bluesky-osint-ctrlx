@@ -1471,24 +1471,41 @@ function render(data) {
 // Se recuerda solo durante la sesión del navegador; nunca se escribe en el código.
 const API_KEY_STORAGE = 'osint_api_key';
 try { $('#apiKey').value = sessionStorage.getItem(API_KEY_STORAGE) || ''; } catch (e) { /* storage bloqueado */ }
-$('#apiKey').addEventListener('change', (e) => {
+// 'input' (no 'change'): al pegar la clave se reconecta sin tener que apretar Enter.
+let apiKeyTimer = null;
+$('#apiKey').addEventListener('input', (e) => {
   try { sessionStorage.setItem(API_KEY_STORAGE, e.target.value); } catch (err) { /* storage bloqueado */ }
-  loadData();
+  clearTimeout(apiKeyTimer);
+  apiKeyTimer = setTimeout(loadData, 400);
 });
 function authHeaders() {
   const key = $('#apiKey').value.trim();
   return key ? { 'X-API-Key': key } : {};
 }
 
+function pedirClave(mensaje) {
+  statusText.textContent = 'falta la clave';
+  statusDot.className = 'status-dot err';
+  app.innerHTML = `<div class="state-box err">${mensaje}<br>
+    Pegá la clave en el campo <b>«clave de acceso»</b> (arriba a la derecha); el tablero se conecta solo.</div>`;
+}
+
 async function loadData() {
   const url = $('#endpoint').value.trim();
+  if (!$('#apiKey').value.trim()) {
+    pedirClave('Los webhooks piden una clave de acceso (encabezado <code>X-API-Key</code>).');
+    return;
+  }
   statusText.textContent = 'conectando…';
   statusDot.className = 'status-dot';
   app.innerHTML = `<div class="state-box">Consultando ${esc(url)}…</div>`;
 
   try {
     const res = await fetch(url, { method: 'GET', headers: authHeaders() });
-    if (res.status === 401 || res.status === 403) throw new Error(`HTTP ${res.status}: falta la clave de acceso o no es válida`);
+    if (res.status === 401 || res.status === 403) {
+      pedirClave(`La clave de acceso no es válida (HTTP ${res.status}).`);
+      return;
+    }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     lastData = data;
@@ -1500,7 +1517,8 @@ async function loadData() {
     statusDot.className = 'status-dot err';
     app.innerHTML = `<div class="state-box err">
       No se pudo conectar con el Webhook.<br>
-      Verificá que el workflow "API Dashboard" esté <b>activo</b> en n8n y que la URL sea correcta.<br>
+      Verificá que el workflow "API Dashboard" esté <b>activo</b> en n8n, que la URL sea correcta y que esta
+      página esté abierta desde <code>http://localhost:8080</code> (no como archivo: CORS la bloquea).<br>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:0.8;">${esc(err.message)}</span>
     </div>`;
   }

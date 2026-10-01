@@ -43,10 +43,15 @@ quedara siempre en `null`. Los datos insertados antes de esa fecha fueron re-rec
 
 ### 2.2. Código corregido después de la auditoría
 
-Las correcciones de la sección 7 están integradas en `main` y la versión evaluada es la etiqueta
-**`v1.0-defensa`** (`git checkout v1.0-defensa`). El hash del commit etiquetado se obtiene con
-`git rev-parse v1.0-defensa^{commit}`; no puede figurar dentro de este mismo archivo, porque
-escribirlo cambiaría el hash.
+Las correcciones de la sección 7 están integradas en `main`, con dos etiquetas:
+
+- **`v1.0-defensa`**: la versión con las correcciones de la auditoría, antes de la prueba en vivo.
+- **`v1.0.1`**: la iteración posterior, con los dos defectos encontrados en la prueba en vivo ya
+  corregidos (sección 9), el tablero pidiendo la clave de acceso y esta documentación actualizada.
+  Es la versión que cita la tesis.
+
+El hash del commit de cada etiqueta se obtiene con `git rev-parse <etiqueta>^{commit}`; no puede
+figurar dentro de este mismo archivo, porque escribirlo cambiaría el hash.
 
 ### 2.3. Corpus
 
@@ -408,15 +413,34 @@ Sobre `posts_bluesky(pais)`, `(keyword_busqueda)`, `(fecha_creacion)`,
 
 ---
 
-## 9. Pendiente de verificación en n8n
+## 9. Verificación
 
 Las consultas SQL de los workflows se probaron contra PostgreSQL 18 con las 3.908 filas reales, y
-el código de los nodos Code con un arnés que emula a n8n. Queda probar en la instancia de n8n,
-después de importar los workflows:
+el código de los nodos Code con un arnés que emula a n8n. El 2026-10-01 se probó además en la
+instancia real (n8n 2.10.3, PostgreSQL 18.6), con la base del corpus migrada (respaldo previo
+tomado):
 
-- [ ] Importación de los tres workflows y asignación de credentials (Postgres, Custom Auth de
-      Bluesky y la nueva Header Auth).
-- [ ] Una corrida real del Workflow 1: login (sin sesión) → segunda corrida reutilizando la sesión
-      → fila en `ejecuciones_recoleccion` con `estado = 'ok'` y filas en `capturas`.
-- [ ] Workflow 3 desde el tablero servido en `http://localhost:8080`: respuesta 200 con la clave,
-      401/403 sin ella, y que el navegador no bloquee por CORS.
+| Prueba | Resultado |
+|---|---|
+| Webhooks sin clave / con clave incorrecta / con clave correcta | 403 / 403 / 200 |
+| CORS: preflight desde `http://localhost:8080` y desde otros orígenes (`null`, `:5500`) | Permitido / la respuesta no habilita al origen, el navegador la bloquea |
+| `mayor_engagement` en la respuesta real del Workflow 2 | 230, de tipo número |
+| Validación de entrada del Workflow 3 (país fuera de la lista, keyword vacía, keyword mal codificada) | 400 con el motivo |
+| Workflow 1, primera corrida sin sesión guardada | `createSession`; 2 páginas, 172 posts, 172 capturas, `estado = ok` |
+| Corrida siguiente con el `accessJwt` vigente | Reutiliza la sesión, sin login |
+| Corrida con el `accessJwt` vencido | `refreshSession`; se guarda también el refresh token rotado por Bluesky |
+| Corrida con el refresh token rechazado por Bluesky | Cae a `createSession` y la corrida termina bien |
+| Búsqueda sin resultados | Responde `posts_procesados: 0` y la corrida queda registrada |
+| Consistencia | En cada corrida, `posts_devueltos` = cantidad de capturas |
+
+Defectos encontrados durante la prueba y corregidos: (a) una búsqueda sin resultados dejaba el
+webhook sin respuesta (se agregó el nodo «¿Hay posts?»); (b) una keyword con caracteres mal
+codificados se aceptaba y se buscaba tal cual (ahora se rechaza con 400).
+
+Limpieza posterior (2026-10-01): se borraron de `ejecuciones_recoleccion` las corridas de prueba 2
+(keyword mal codificada) y 4 (keyword inventada para forzar 0 resultados), ambas con 0 posts y 0
+capturas. Las corridas 1, 3, 5 y 6 se conservan porque son datos reales. Ninguna de estas pruebas
+modifica el corpus del capítulo 5 (exports con hash, sección 2.3).
+
+**No verificado en vivo**: el reintento ante HTTP 429. No se puede provocar sin exceder a propósito
+los límites de la API; queda verificado solo en la configuración del nodo (4 intentos, 5 s).
