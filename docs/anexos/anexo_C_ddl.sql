@@ -1,7 +1,7 @@
 -- Anexo C — DDL de la base de datos
 -- Generado con `python herramientas/extraer_anexos.py`. No editar a mano.
--- database/schema.sql  SHA-256 223475baaeaff31cf8fe2aa46168d8d3368763303fa80430e2509c0c05afb80b
--- database/migraciones/001_capturas_ejecuciones_sesion_indices.sql  SHA-256 613a68ab6b0d3965941217f82a27cdb3e7c5efa3d185b9e1ee50ac0ace175dcf
+-- database/schema.sql  SHA-256 a0ff4cad9bf6f3fe4c71211c25f7062ab087c9bab226b4d83aee84682b516b34
+-- database/migraciones/001_capturas_ejecuciones_sesion_indices.sql  SHA-256 0c9bbb46f9016fa09030ed222d520301940fdb530bedbfe3b3314c159bf829c9
 
 -- =====================================================================
 -- database/schema.sql

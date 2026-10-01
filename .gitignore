@@ -15,3 +15,6 @@ validacion/privado/
 
 # Cache de Python
 __pycache__/
+
+# Claves locales (ej. la X-API-Key de los webhooks)
+.secrets/
