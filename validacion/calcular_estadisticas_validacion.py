@@ -186,6 +186,20 @@ def main(path):
         if dg:
             kg = cohen_kappa([limpiar(r["pais_correcto"]) for r in dg], [limpiar(r["pais_correcto_b"]) for r in dg])
             print(f"Kappa en relevancia geográfica (n={len(dg)}): {kg:.3f} ({interpretar_kappa(kg)})")
+        # Criterio binario que sustenta la relevancia combinada: (relevante o parcial) frente a no_relevante.
+        # Se excluyen las filas que alguno de los dos marcó como no_clasificable.
+        rel = ("relevante", "parcial")
+        db = [r for r in dobles if limpiar(r["clasificacion"]) != "no_clasificable"
+              and limpiar(r["clasificacion_b"]) != "no_clasificable"]
+        if db:
+            ab = ["R" if limpiar(r["clasificacion"]) in rel else "N" for r in db]
+            bb = ["R" if limpiar(r["clasificacion_b"]) in rel else "N" for r in db]
+            po = sum(1 for x, y in zip(ab, bb) if x == y) / len(db)
+            kb = cohen_kappa(ab, bb)
+            print(f"Kappa binario (relevante/parcial vs. no_relevante, n={len(db)}): {kb:.3f} "
+                  f"({interpretar_kappa(kb)}) | acuerdo simple: {po * 100:.1f}% | PABAK: {2 * po - 1:.2f}")
+            k3 = cohen_kappa([limpiar(r["clasificacion"]) for r in db], [limpiar(r["clasificacion_b"]) for r in db])
+            print(f"Kappa en relevancia sin no_clasificable (3 categorías, n={len(db)}): {k3:.3f}")
         if len(dobles) < 20:
             print("Aviso: con menos de ~20 filas en común el kappa es muy inestable.")
         difer = [(i, r) for i, r in enumerate(rows, start=2) if r in dobles
