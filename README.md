@@ -344,16 +344,17 @@ DDL completo en `database/schema.sql`. Tablas:
 
 - [ ] **Reexportar `Workflow 1 V2` y `Workflow 2 V2`** desde n8n después de cualquier cambio manual (actualmente el repo puede quedar desincronizado de lo que corre en la instancia real — pasó con el fix de Custom Auth y con el agregado de `pais`/`fecha_insercion` a la query del Workflow 2).
 - [ ] Usar `posible_falso_positivo_geografico` y `pagina_recoleccion` en el dashboard (el Workflow 2 ya los entrega): excluir o resaltar los posibles falsos positivos y mostrar la distribución por página.
-- [ ] **Mover la agregación al servidor** (Workflow 2; los índices necesarios ya están creados en la migración 001): hoy devuelve todos los posts en un solo JSON (4.016 posts ≈ 2,9 MB; el dashboard lo renderiza sin problemas, pero crece linealmente con cada país o keyword nuevos). Que Postgres devuelva los agregados y el listado se pagine o se sirva aparte.
+- [ ] **Mover la agregación al servidor** (Workflow 2; los índices necesarios ya están creados en la migración 001): hoy devuelve todos los posts en un solo JSON (3.908 posts ≈ 2,84 MB en el corte analizado; el dashboard lo renderiza sin problemas, pero crece linealmente con cada país o keyword nuevos). Que Postgres devuelva los agregados y el listado se pagine o se sirva aparte.
 - [ ] Evaluar otras colisiones geográficas (ej. «Georgia», «Columbia») y agregarlas a `COLISIONES_GEOGRAFICAS` en el nodo de limpieza.
 - [ ] Repetir la recolección de Brasil con keywords en portugués (las keywords en español favorecen los términos que se usan igual en inglés).
 - [ ] Detectar links compartidos como texto plano vía `record.facets`, no solo como tarjeta embebida (`embed.external.uri`) — hoy se pierden fuentes externas que no generan preview card.
 - [ ] Automatizar la recolección con Schedule Trigger (cuando haya un entorno con disponibilidad continua).
-- [ ] **Validación manual de relevancia (n=80)**: el sorteo (semilla 2026, reproducible) y el cálculo de estadísticas ya están en `validacion/`; falta la clasificación humana de la planilla. Mide relevancia temática y relevancia geográfica por separado, con acuerdo entre dos evaluadores (kappa) sobre un subconjunto. Es una muestra nueva sobre los 3.908 posts finales, no una continuación de la anterior (cuya semilla y lista no se conservaron).
+- [x] **Validación manual de relevancia (n=80)**: sorteo (semilla 2026, reproducible), clasificación de ambos evaluadores (28/09/2026) y estadísticas en `validacion/` (tesis, sección 5.6). Mide relevancia temática y relevancia geográfica por separado, con acuerdo entre dos evaluadores (kappa) sobre un subconjunto. Es una muestra nueva sobre los 3.908 posts finales, no una continuación de la anterior (cuya semilla y lista no se conservaron).
 - [ ] Sticky Notes explicativas en el canvas de los workflows (útil para mostrar el pipeline en vivo durante la defensa).
 - [x] Autenticación en los webhooks (Header Auth) y CORS restringido al origen del tablero. Riesgos que siguen abiertos: `METODOLOGIA.md`, sección 7.6.
 - [ ] Medir cuántas publicaciones del corpus devuelve más de una combinación (`METODOLOGIA.md`, sección 5.3).
-- [ ] Incorporar la planilla completa del evaluador B (hoy el κ de la sección 5.6 no se puede reproducir desde el repo; `METODOLOGIA.md`, sección 6).
+- [x] Incorporar las clasificaciones del evaluador B a la planilla seudonimizada (columnas `clasificacion_b` y `pais_correcto_b`); `validacion/calcular_estadisticas_validacion.py` reproduce los κ de la sección 5.6 (`METODOLOGIA.md`, sección 6).
+- [x] Pruebas automatizadas mínimas del nodo «Limpieza y recopilación de datos» (tesis, sección 8.6): `node --test tests/limpieza.test.mjs` (Node 18+, sin dependencias). Leen el código del nodo directamente de los JSON de los Workflows 1 y 3.
 - [x] Licencia: MIT (código) + CC BY 4.0 (documentación).
 - [x] Historial de git purgado de archivos con datos personales y del App Password (`METODOLOGIA.md`, sección 8).
 - [ ] Ampliar/revisar la sección 8 (ética/legal) con el director de tesis.
