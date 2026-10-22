@@ -5,9 +5,14 @@ y cada post devuelto en `capturas` (N:M), así que al terminar se puede medir ex
 publicaciones fueron devueltas por más de una combinación (ver METODOLOGIA.md, sección 5).
 
 Uso (desde la raíz del repo, con n8n levantado y el Workflow 3 publicado):
-    set OSINT_API_KEY=<valor de la credential "Header Auth" de los webhooks>     (Windows)
+    $env:OSINT_API_KEY="<valor de la credential Header Auth de los webhooks>"   (Windows, PowerShell)
+    set OSINT_API_KEY=<valor de la credential "Header Auth" de los webhooks>     (Windows, cmd)
     export OSINT_API_KEY=<...>                                                   (Linux/macOS)
     python herramientas/recolectar_combinaciones.py
+
+Solo algunas combinaciones (por ejemplo, el experimento de palabras clave en portugués para
+Brasil, recomendación 8.3 de la tesis):
+    python herramientas/recolectar_combinaciones.py --paises brasil --keywords "cibersegurança" "ataque cibernético" "vazamento de dados" "segurança da informação"
 
 Opcional:
     OSINT_WEBHOOK_URL   (default http://localhost:5678/webhook/nueva-busqueda)
@@ -18,6 +23,7 @@ Rate limit: la sesión de Bluesky se reutiliza entre corridas (tabla bluesky_ses
 combinaciones para no concentrar las llamadas a searchPosts.
 """
 
+import argparse
 import json
 import os
 import sys
@@ -47,10 +53,17 @@ def buscar(keyword, pais):
 
 
 def main():
+    ap = argparse.ArgumentParser(description="Recolecta combinaciones keyword × país vía el Workflow 3.")
+    ap.add_argument("--keywords", nargs="+", default=KEYWORDS, help="por defecto, las 8 activas")
+    ap.add_argument("--paises", nargs="+", default=PAISES, help="por defecto, los 5 países")
+    ap.add_argument("--pausa", type=float, default=PAUSA_S, help=f"segundos entre combinaciones (default {PAUSA_S})")
+    args = ap.parse_args()
     if not API_KEY:
         sys.exit("Falta la variable de entorno OSINT_API_KEY.")
     sys.stdout.reconfigure(encoding="utf-8")
-    combinaciones = [(k, p) for p in PAISES for k in KEYWORDS]
+    combinaciones = [(k, p) for p in args.paises for k in args.keywords]
+    print(f"Inicio: {time.strftime('%Y-%m-%d %H:%M:%S %z')} — {len(combinaciones)} combinaciones "
+          "(anotar esta hora: es el parámetro 'desde' de herramientas/consultas_pertenencia.sql)")
     fallidas = []
     for i, (keyword, pais) in enumerate(combinaciones, 1):
         try:
@@ -62,7 +75,7 @@ def main():
             print(f"[{i:2}/{len(combinaciones)}] {pais:9} | {keyword:22} | ERROR: {e}")
             fallidas.append((keyword, pais))
         if i < len(combinaciones):
-            time.sleep(PAUSA_S)
+            time.sleep(args.pausa)
     if fallidas:
         print("\nCombinaciones con error (volver a correrlas):")
         for keyword, pais in fallidas:
