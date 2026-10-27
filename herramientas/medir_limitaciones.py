@@ -14,6 +14,10 @@ Mide:
   (3) Sección 5.3: publicaciones cuyo texto menciona dos o más de los cinco países. Es una
       medición textual reproducible, no la atribución múltiple real (esa requiere volver a
       ejecutar las búsquedas; ver herramientas/recolectar_combinaciones.py).
+  (4) Sección 5.3 y recomendación 8.12 (a): publicaciones cuyo texto contiene los términos de dos
+      o más de las 40 combinaciones keyword×país, es decir, candidatas a haber sido devueltas por
+      más de una búsqueda. Reemplaza la «estimación textual» de METODOLOGIA.md (sección 5.2) por una
+      medición reproducible. Sigue sin ser la atribución múltiple real de la API.
 
 Uso (desde la raíz del repo):
     python herramientas/medir_limitaciones.py database/export_posts_latam_v2.json
@@ -51,6 +55,9 @@ MENCIONES_PAIS = {
     "brasil": re.compile(r"\bbra[sz]il\b|\bbrasileir[oa]s?\b|\bbrasileñ[oa]s?\b|\bbrazilians?\b", re.I),
     "colombia": re.compile(r"\bcolombia\b|\bcolombian[oa]s?\b|\bcolombians?\b", re.I),
 }
+# Las 8 keywords activas y los 5 países, tal como se envían en q = "{keyword} {país}".
+KEYWORDS_ACTIVAS = ["ransomware", "ciberseguridad", "malware", "hacking", "data breach",
+                    "ciberataque", "filtración de datos", "seguridad informática"]
 RE_NUEVO_MEXICO = re.compile(r"\b(new\s*|nuevo\s+)m[eé]xico\b", re.I)
 
 
@@ -158,6 +165,44 @@ def main():
     if args.detalle:
         for p, m in multi:
             print(f"      {p['post_uri']}  {sorted(m)}")
+
+    print()
+
+    # (4) Candidatas a más de una combinación keyword×país --------------------------------------
+    # Criterio: texto en minúsculas y sin tildes; la combinación (k, p) «coincide» si el texto
+    # contiene, como palabras completas, todos los términos de k y el nombre del país p (igual que
+    # la consulta q, que no es una frase exacta). «New Mexico» no cuenta como México.
+    def terminos(s):
+        return [re.compile(r"\b" + re.escape(w) + r"\b") for w in sin_tildes(s).split()]
+    kw_re = {k: terminos(k) for k in KEYWORDS_ACTIVAS}
+    pais_re = {p: terminos(p) for p in PAISES}
+    multi_comb, multi_kw, multi_pa = [], 0, 0
+    for p in posts:
+        t = sin_tildes(RE_NUEVO_MEXICO.sub(" ", p.get("texto") or ""))
+        ks = [k for k, rs in kw_re.items() if all(r.search(t) for r in rs)]
+        ps = [q for q, rs in pais_re.items() if all(r.search(t) for r in rs)]
+        if len(ks) * len(ps) >= 2:
+            multi_comb.append((p, ks, ps))
+            multi_kw += len(ks) >= 2
+            multi_pa += len(ps) >= 2
+    print("(4) Publicaciones cuyo texto coincide con dos o más combinaciones keyword×país")
+    print(f"    {len(multi_comb)} de {n} ({pct(len(multi_comb), n)}); "
+          f"con 2+ keywords: {multi_kw}; con 2+ países (nombre literal): {multi_pa}")
+    # Criterio de la estimación anterior (METODOLOGIA.md, sección 5.2): keyword como frase exacta
+    # y sin excluir «New Mexico». Se informa solo para conciliar con la cifra previa (163).
+    def frase(s):
+        return re.compile(r"\b" + r"\s+".join(map(re.escape, sin_tildes(s).split())) + r"\b")
+    kw_f = [frase(k) for k in KEYWORDS_ACTIVAS]
+    pa_f = [frase(q) for q in PAISES]
+    previo = 0
+    for p in posts:
+        t = sin_tildes(p.get("texto") or "")
+        previo += sum(bool(r.search(t)) for r in kw_f) * sum(bool(r.search(t)) for r in pa_f) >= 2
+    print(f"    Con el criterio de la estimación anterior (frase exacta, sin excluir «New Mexico»): {previo}")
+    print("    Es una medición textual: el buscador de Bluesky no hace coincidencia literal.")
+    if args.detalle:
+        for p, ks, ps in multi_comb:
+            print(f"      {p['post_uri']}  {ks} × {ps}")
 
 
 if __name__ == "__main__":
