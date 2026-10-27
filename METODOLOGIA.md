@@ -212,17 +212,20 @@ haya casos, es que la base guardó uno solo por post). Dos indicadores:
 
 - **Casos confirmados**: la auditoría señala al menos 8 (los posts de «incidente de seguridad» a
   los que se les restauró la etiqueta original, README sección 6).
-- **Estimación textual** (`python` sobre el export; texto normalizado a minúsculas y sin tildes,
-  búsqueda por palabra completa):
-  - **163 publicaciones (4,2 %)** contienen las palabras de dos o más combinaciones keyword×país
-    base, es decir, son candidatas a haber sido devueltas por más de una búsqueda.
-  - **68 publicaciones (1,7 %)** mencionan dos o más de los cinco países. Las combinaciones más
-    frecuentes: argentina+colombia+mexico (26), colombia+mexico (7), argentina+mexico (5),
-    brasil+mexico (5).
+- **Medición textual** (`python herramientas/medir_limitaciones.py database/export_posts_latam_v2.json`,
+  puntos 3 y 4; texto en minúsculas y sin tildes, palabras completas, «New Mexico» no cuenta como México):
+  - **177 publicaciones (4,5 %)** contienen los términos de dos o más combinaciones keyword×país
+    base, es decir, son candidatas a haber sido devueltas por más de una búsqueda: 122 contienen
+    dos o más keywords y 58 nombran dos o más países (algunas cumplen ambas condiciones).
+  - **106 publicaciones (2,7 %)** mencionan dos o más de los cinco países con un criterio más amplio
+    (gentilicios y nombres en otros idiomas).
+  - La estimación anterior (163 publicaciones, 4,2 %; 68 con dos o más países) exigía la keyword
+    como frase exacta y no excluía «New Mexico». El script reproduce las 163 con ese criterio.
 
-  Es una aproximación, no una medición: el buscador de Bluesky no es una búsqueda literal (puede
-  normalizar términos o coincidir con el texto de la tarjeta de un link) y no garantiza devolver
-  todas las coincidencias. Sirve para dimensionar: el problema es de un orden mayor que 8 casos.
+  Siguen siendo mediciones sobre el texto, no la atribución múltiple real: el buscador de Bluesky
+  no hace una búsqueda literal (puede normalizar términos o coincidir con el texto de la tarjeta de
+  un link) y no garantiza devolver todas las coincidencias. Sirven para dimensionar: el problema es
+  de un orden mayor que 8 casos.
 
 ### 5.3. Medición exacta (procedimiento)
 
