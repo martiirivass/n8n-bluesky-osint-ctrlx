@@ -7,7 +7,7 @@
 //   node --test tests/limpieza.test.mjs
 //
 // Las pruebas marcadas «LIMITACIÓN CONOCIDA» documentan comportamientos que la tesis declara
-// como pendientes (recomendaciones 8.1 y 8.12-c). Si se corrige el nodo, hay que actualizarlas.
+// como pendientes (recomendaciones 8.1, 8.10 y 8.12-c). Si se corrige el nodo, hay que actualizarlas.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

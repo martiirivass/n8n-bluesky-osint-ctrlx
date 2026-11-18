@@ -43,12 +43,19 @@ quedara siempre en `null`. Los datos insertados antes de esa fecha fueron re-rec
 
 ### 2.2. Código corregido después de la auditoría
 
-Las correcciones de la sección 7 están integradas en `main`, con dos etiquetas:
+Las correcciones de la sección 7 están integradas en `main`, con tres etiquetas:
 
 - **`v1.0-defensa`**: la versión con las correcciones de la auditoría, antes de la prueba en vivo.
 - **`v1.0.1`**: la iteración posterior, con los dos defectos encontrados en la prueba en vivo ya
   corregidos (sección 9), el tablero pidiendo la clave de acceso y esta documentación actualizada.
-  Es la versión que cita la tesis.
+  Es la **versión del sistema** que describe la tesis.
+- **`tesis-v10`**: la **versión del repositorio** que acompaña a la versión entregada de la tesis y
+  que cita su bibliografía. El sistema no cambia respecto de `v1.0.1` (no hay diferencias en `n8n/`,
+  `database/` ni `frontend/`); agrega solo artefactos de verificación: la planilla de validación
+  seudonimizada con las clasificaciones del evaluador B, las pruebas del nodo de limpieza
+  (`tests/limpieza.test.mjs`), la herramienta `herramientas/medir_limitaciones.py` y esta
+  documentación actualizada. **Es la etiqueta que hay que clonar para reproducir las cifras de la
+  tesis** (tablas 5.2 a 5.5).
 
 El hash del commit de cada etiqueta se obtiene con `git rev-parse <etiqueta>^{commit}`; no puede
 figurar dentro de este mismo archivo, porque escribirlo cambiaría el hash.
@@ -275,20 +282,30 @@ Reproducción desde el repositorio público:
 python validacion/calcular_estadisticas_validacion.py
 ```
 
-usa `validacion/validacion_muestra_80_seudonimizada.csv` (sección 8). Verificado el 2026-09-29:
+usa `validacion/validacion_muestra_80_seudonimizada.csv` (sección 8). Verificado el 2026-11-17 sobre
+la etiqueta `tesis-v10`:
 
 - El sorteo (`sortear_muestra_validacion.py`, semilla 2026) reproduce la muestra **byte a byte**
   a partir del export `73c35ee1…`.
 - Precisión amplia (relevante + parcial): 68/76 = **89,5 %**, IC 95 % [80,6 %; 94,6 %]. Coincide
   con la tesis.
-- **Precisión geográfica 85,5 %**: corresponde a 65/76, es decir, cuenta las 9 filas sin dato
-  geográfico (`no_se`) como no correctas. El script informa 65/67 = 97,0 % excluyéndolas. Los dos
-  cálculos son válidos, pero la tesis tiene que declarar el denominador que usa.
-- **Acuerdo entre evaluadores (κ = 0,356 y κ = 0,758): no reproducible desde el repositorio.** La
-  planilla del evaluador B que estaba versionada tiene las 40 filas sin clasificar. Hay que
-  incorporar la planilla B completa (en `validacion/privado/`), correr
-  `unir_clasificaciones.py` y `seudonimizar_validacion.py`, y versionar el CSV seudonimizado
-  resultante.
+- **Precisión geográfica**: 65/76 = **85,5 %** contando las 9 filas sin dato geográfico (`no_se`)
+  como no confirmadas (lectura conservadora, la que adopta la tesis), y 65/67 = **97,0 %**,
+  IC 95 % [89,8 %; 99,2 %], excluyéndolas. La tesis declara ambos denominadores (sección 5.6).
+- **Acuerdo entre evaluadores: reproducible desde el repositorio.** Las columnas `clasificacion_b`
+  y `pais_correcto_b` del CSV seudonimizado están completas en las 40 filas en común (incorporadas
+  en el commit `d7d79c6`, a partir de la planilla del evaluador B clasificada el 2026-09-28). El
+  script reproduce exactamente:
+  - κ = **0,356** (relevancia, 4 categorías, n = 40; 67,5 % de acuerdo);
+  - κ = **0,392** (relevancia sin `no_clasificable`, 3 categorías, n = 37);
+  - κ = **0,213** (relevancia binaria, n = 37; 86,5 % de acuerdo; PABAK = 0,73);
+  - κ = **0,758** (país, 3 categorías, n = 40).
+- Las planillas originales de ambos evaluadores están en `validacion/privado/` (no versionada); sus
+  hashes SHA-256 figuran en el Anexo F de la tesis y se entregan al tribunal por canal privado.
+
+Nota histórica: hasta el 2026-10-19 la planilla del evaluador B versionada tenía las 40 filas sin
+clasificar, y esta sección indicaba que el κ no era reproducible desde el repositorio. Eso ya no
+aplica.
 
 ---
 
